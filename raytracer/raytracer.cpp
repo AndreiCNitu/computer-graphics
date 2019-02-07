@@ -19,8 +19,8 @@ struct Intersection {
     int triangleIndex;
 };
 
-#define SCREEN_WIDTH 1280
-#define SCREEN_HEIGHT 800
+#define SCREEN_WIDTH 640
+#define SCREEN_HEIGHT 512
 #define FULLSCREEN_MODE true
 
 SDL_Event event;
@@ -87,10 +87,12 @@ bool Update() {
 	        int key_code = e.key.keysym.sym;
 	        switch(key_code) {
 	            case SDLK_UP:
-		            /* Move camera forward */
+                    /* Move camera forward */
+                    cameraPos.z += dt / 5000;
 		            break;
 	            case SDLK_DOWN:
 		            /* Move camera backwards */
+                    cameraPos.z -= dt / 5000;
 		            break;
 	            case SDLK_LEFT:
 		            /* Move camera left */
