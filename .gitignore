@@ -1,3 +1,4 @@
-skeleton
-skeleton.o
-screenshot.bmp
+/starfield/skeleton
+/raytracer/raytracer
+*.o
+*.bmp
