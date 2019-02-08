@@ -19,23 +19,29 @@ struct Intersection {
     int triangleIndex;
 };
 
-#define SCREEN_WIDTH 640
-#define SCREEN_HEIGHT 512
+#define SCREEN_WIDTH 320
+#define SCREEN_HEIGHT 256
 #define FULLSCREEN_MODE true
 
 SDL_Event event;
 vector<Triangle> triangles;
 float focalLength = SCREEN_HEIGHT / 2;
-vec4 cameraPos( 0.0, 0.0, -3.0, 1.0);
+vec4  cameraPos( 0.0, 0.0, -3.0, 1.0);
+mat4  cameraRotation(vec4(1, 0, 0, 1),
+                     vec4(0, 1, 0, 1),
+                     vec4(0, 0, 1, 1),
+                     vec4(0, 0, 0, 1));
+float yaw;
 
 bool Update();
 void Draw(screen* screen);
-bool TriangleIntersection( vec4 start, vec4 dir, int i, Triangle triangle, Intersection& intersection );
+bool TriangleIntersection( vec4 start, vec4 dir, Triangle triangle, Intersection& intersection );
 bool ClosestIntersection(
       vec4 start,
       vec4 dir,
       const vector<Triangle>& triangles,
       Intersection& closestIntersection );
+void RotateY( mat4& rotation, float rad );
 
 int main( int argc, char* argv[] ) {
 
@@ -61,7 +67,9 @@ void Draw(screen* screen) {
     // Loop throught all pixels
     for (int row = 0; row < SCREEN_HEIGHT; row++) {
         for (int col = 0; col < SCREEN_WIDTH; col++) {
-            vec4 ray(col - SCREEN_WIDTH / 2.0f, row - SCREEN_HEIGHT / 2.0f, focalLength, 0.0);
+            vec4 ray = cameraRotation * vec4(col - SCREEN_WIDTH  / 2.0f,
+                                             row - SCREEN_HEIGHT / 2.0f,
+                                             focalLength, 0.0);
             Intersection intersect;
             vec3 intersectColor = vec3(0, 0, 0);
             if (ClosestIntersection(cameraPos, ray, triangles, intersect)) {
@@ -88,17 +96,19 @@ bool Update() {
 	        switch(key_code) {
 	            case SDLK_UP:
                     /* Move camera forward */
-                    cameraPos.z += dt / 5000;
+                    cameraPos.z += 0.1f;
 		            break;
 	            case SDLK_DOWN:
 		            /* Move camera backwards */
-                    cameraPos.z -= dt / 5000;
+                    cameraPos.z -= 0.1f;
 		            break;
 	            case SDLK_LEFT:
-		            /* Move camera left */
+		            /* Rotate camera left */
+                    RotateY(cameraRotation, -0.1f);
 		            break;
 	            case SDLK_RIGHT:
-		            /* Move camera right */
+		            /* Rotate camera right */
+                    RotateY(cameraRotation, 0.1f);
 		            break;
 	            case SDLK_ESCAPE:
 		            /* Move camera quit */
@@ -110,7 +120,7 @@ bool Update() {
     return true;
 }
 
-bool TriangleIntersection( vec4 start, vec4 dir, int i, Triangle triangle, Intersection& intersection ) {
+bool TriangleIntersection( vec4 start, vec4 dir, Triangle triangle, Intersection& intersection ) {
 
     vec4 v0 = triangle.v0;
     vec4 v1 = triangle.v1;
@@ -136,7 +146,6 @@ bool TriangleIntersection( vec4 start, vec4 dir, int i, Triangle triangle, Inter
         float dy2 = (start.y - intersection.position.y) * (start.y - intersection.position.y);
         float dz2 = (start.z - intersection.position.y) * (start.z - intersection.position.z);
         intersection.distance = sqrt(dx2 + dy2 + dz2);
-        intersection.triangleIndex = i;
         return true;
     } else {
         return false;
@@ -154,8 +163,9 @@ bool ClosestIntersection(
     Intersection localIntersection;
 
     for( int i = 0; i < triangles.size(); i++ ) {
-        if (TriangleIntersection( start, dir, i, triangles[i], localIntersection )) {
+        if (TriangleIntersection( start, dir, triangles[i], localIntersection )) {
             found = true;
+            localIntersection.triangleIndex = i;
             if (localIntersection.distance < max) {
                 closestIntersection = localIntersection;
                 max = localIntersection.distance;
@@ -163,4 +173,14 @@ bool ClosestIntersection(
         }
     }
     return found;
+}
+
+void RotateY( mat4& rotation, float rad ) {
+    vec4 c1(cos(rad), 0, -sin(rad), 0);
+    vec4 c2(0,        1,  0,        0);
+    vec4 c3(sin(rad), 0,  cos(rad), 0);
+    vec4 c4(0,        0,  0,        1);
+
+    mat4 R = mat4(c1, c2, c3, c4);
+    rotation = R * rotation;
 }
