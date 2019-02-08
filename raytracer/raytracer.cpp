@@ -19,19 +19,18 @@ struct Intersection {
     int triangleIndex;
 };
 
-#define SCREEN_WIDTH 320
-#define SCREEN_HEIGHT 256
+#define SCREEN_WIDTH 160
+#define SCREEN_HEIGHT 128
 #define FULLSCREEN_MODE true
 
 SDL_Event event;
 vector<Triangle> triangles;
 float focalLength = SCREEN_HEIGHT / 2;
-vec4  cameraPos( 0.0, 0.0, -3.0, 1.0);
+vec4  cameraPos( 0.0, 0.0, -2.5, 1.0);
 mat4  cameraRotation(vec4(1, 0, 0, 1),
                      vec4(0, 1, 0, 1),
                      vec4(0, 0, 1, 1),
                      vec4(0, 0, 0, 1));
-float yaw;
 
 bool Update();
 void Draw(screen* screen);
@@ -96,11 +95,11 @@ bool Update() {
 	        switch(key_code) {
 	            case SDLK_UP:
                     /* Move camera forward */
-                    cameraPos.z += 0.1f;
+                    cameraPos += cameraRotation * vec4(0, 0, 0.1f, 0);
 		            break;
 	            case SDLK_DOWN:
 		            /* Move camera backwards */
-                    cameraPos.z -= 0.1f;
+                    cameraPos += cameraRotation * vec4(0, 0, -0.1f, 0);
 		            break;
 	            case SDLK_LEFT:
 		            /* Rotate camera left */
@@ -159,16 +158,16 @@ bool ClosestIntersection(
     Intersection& closestIntersection ) {
 
     bool found = false;
-    float max = std::numeric_limits<float>::max();
+    float midDistance = std::numeric_limits<float>::max();
     Intersection localIntersection;
 
     for( int i = 0; i < triangles.size(); i++ ) {
         if (TriangleIntersection( start, dir, triangles[i], localIntersection )) {
             found = true;
             localIntersection.triangleIndex = i;
-            if (localIntersection.distance < max) {
+            if (localIntersection.distance < midDistance) {
                 closestIntersection = localIntersection;
-                max = localIntersection.distance;
+                midDistance = localIntersection.distance;
             }
         }
     }
