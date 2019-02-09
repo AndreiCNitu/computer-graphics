@@ -6,6 +6,7 @@
 #include <stdint.h>
 #include <limits>
 #include <math.h>
+#include <omp.h>
 
 using namespace std;
 using glm::vec3;
@@ -19,8 +20,8 @@ struct Intersection {
     int triangleIndex;
 };
 
-#define SCREEN_WIDTH 160
-#define SCREEN_HEIGHT 128
+#define SCREEN_WIDTH 2560
+#define SCREEN_HEIGHT 1600
 #define FULLSCREEN_MODE true
 
 SDL_Event event;
@@ -43,7 +44,6 @@ bool ClosestIntersection(
 void RotateY( mat4& rotation, float rad );
 
 int main( int argc, char* argv[] ) {
-
     screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
 
     LoadTestModel( triangles );
@@ -64,6 +64,7 @@ void Draw(screen* screen) {
     memset(screen->buffer, 0, screen->height * screen->width * sizeof(uint32_t));
 
     // Loop throught all pixels
+    #pragma omp parallel for
     for (int row = 0; row < SCREEN_HEIGHT; row++) {
         for (int col = 0; col < SCREEN_WIDTH; col++) {
             vec4 ray = cameraRotation * vec4(col - SCREEN_WIDTH  / 2.0f,
@@ -85,6 +86,7 @@ bool Update() {
     int t2 = SDL_GetTicks();
     float dt = float(t2-t);
     t = t2;
+    cout << "Render time: " << dt << " ms." << endl;
 
     SDL_Event e;
     while(SDL_PollEvent(&e)) {
