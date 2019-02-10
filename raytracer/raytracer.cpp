@@ -20,18 +20,25 @@ struct Intersection {
     int triangleIndex;
 };
 
+struct Camera {
+    float focalLength;
+    vec4  position;
+    mat4  rotation;
+};
+
+struct Light {
+    vec4  lightPos;
+    vec3  lightColor;
+    float lightMove;
+};
+
 #define SCREEN_WIDTH 2560
 #define SCREEN_HEIGHT 1600
 #define FULLSCREEN_MODE true
 
-SDL_Event event;
 vector<Triangle> triangles;
-float focalLength = SCREEN_HEIGHT / 2;
-vec4  cameraPos( 0.0, 0.0, -2.5, 1.0);
-mat4  cameraRotation(vec4(1, 0, 0, 1),
-                     vec4(0, 1, 0, 1),
-                     vec4(0, 0, 1, 1),
-                     vec4(0, 0, 0, 1));
+struct Camera camera;
+struct Light  light;
 
 bool Update();
 void Draw(screen* screen);
@@ -42,9 +49,23 @@ bool ClosestIntersection(
       const vector<Triangle>& triangles,
       Intersection& closestIntersection );
 void RotateY( mat4& rotation, float rad );
+vec3 DirectLight( const Intersection& intersection );
+vec3 triangleNormal(Triangle t);
 
 int main( int argc, char* argv[] ) {
     screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
+
+    // Initialise camera
+    camera.focalLength = SCREEN_HEIGHT / 2;
+    camera.position = vec4( 0.0, 0.0, -2.2, 1.0);
+    camera.rotation = mat4(vec4(1.0, 0.0, 0.0, 1.0),
+                           vec4(0.0, 1.0, 0.0, 1.0),
+                           vec4(0.0, 0.0, 1.0, 1.0),
+                           vec4(0.0, 0.0, 0.0, 1.0));
+
+    light.lightPos = vec4( 0.0f, -0.5f, -0.7f, 1.0f );
+    light.lightColor = 14.0f * vec3( 1.0, 1.0, 1.0 );
+    light.lightMove = 0.1f;
 
     LoadTestModel( triangles );
 
@@ -67,13 +88,13 @@ void Draw(screen* screen) {
     #pragma omp parallel for
     for (int row = 0; row < SCREEN_HEIGHT; row++) {
         for (int col = 0; col < SCREEN_WIDTH; col++) {
-            vec4 ray = cameraRotation * vec4(col - SCREEN_WIDTH  / 2.0f,
+            vec4 ray = camera.rotation * vec4(col - SCREEN_WIDTH  / 2.0f,
                                              row - SCREEN_HEIGHT / 2.0f,
-                                             focalLength, 0.0);
+                                             camera.focalLength, 0.0);
             Intersection intersect;
             vec3 intersectColor = vec3(0, 0, 0);
-            if (ClosestIntersection(cameraPos, ray, triangles, intersect)) {
-                intersectColor = triangles[intersect.triangleIndex].color;
+            if (ClosestIntersection(camera.position, ray, triangles, intersect)) {
+                intersectColor = triangles[intersect.triangleIndex].color * DirectLight(intersect);
             }
             PutPixelSDL(screen, col, row, intersectColor);
         }
@@ -95,24 +116,51 @@ bool Update() {
 	    } else if (e.type == SDL_KEYDOWN) {
 	        int key_code = e.key.keysym.sym;
 	        switch(key_code) {
+
+                // Move camera forward
 	            case SDLK_UP:
-                    /* Move camera forward */
-                    cameraPos += cameraRotation * vec4(0, 0, 0.1f, 0);
+                    camera.position += camera.rotation * vec4(0, 0, 0.1f, 0);
 		            break;
+                // Move camera backwards
 	            case SDLK_DOWN:
-		            /* Move camera backwards */
-                    cameraPos += cameraRotation * vec4(0, 0, -0.1f, 0);
+                    camera.position -= camera.rotation * vec4(0, 0, 0.1f, 0);
 		            break;
+                // Rotate camera left
 	            case SDLK_LEFT:
-		            /* Rotate camera left */
-                    RotateY(cameraRotation, -0.1f);
+                    RotateY(camera.rotation, -0.1f);
 		            break;
+                // Rotate camera right
 	            case SDLK_RIGHT:
-		            /* Rotate camera right */
-                    RotateY(cameraRotation, 0.1f);
+                    RotateY(camera.rotation, 0.1f);
 		            break;
+
+                // Translate light forward
+                case SDLK_w:
+                    light.lightPos += light.lightMove * vec4(0, 0, 1.0f, 0);
+                    break;
+                // Translate light backwards
+                case SDLK_s:
+                    light.lightPos -= light.lightMove * vec4(0, 0, 1.0f, 0);
+                    break;
+                // Translate light left
+                case SDLK_a:
+                    light.lightPos -= light.lightMove * vec4(1.0f, 0, 0, 0);
+                    break;
+                // Translate light right
+                case SDLK_d:
+                    light.lightPos += light.lightMove * vec4(1.0f, 0, 0, 0);
+                    break;
+                // Translate light up
+                case SDLK_q:
+                    light.lightPos -= light.lightMove * vec4(0, 1.0f, 0, 0);
+                    break;
+                // Translate light down
+                case SDLK_e:
+                    light.lightPos += light.lightMove * vec4(0, 1.0f, 0, 0);
+                    break;
+
+                // Move camera quit
 	            case SDLK_ESCAPE:
-		            /* Move camera quit */
 		            return false;
                     break;
             }
@@ -185,3 +233,26 @@ void RotateY( mat4& rotation, float rad ) {
     mat4 R = mat4(c1, c2, c3, c4);
     rotation = R * rotation;
 }
+
+vec3 DirectLight( const Intersection& intersection ) {
+
+    vec3  normal = triangles[intersection.triangleIndex].normal;
+    vec3  lightVector  = light.lightPos - intersection.position;
+    float radius = length( lightVector );
+    lightVector = normalize( lightVector );
+
+    return light.lightColor * max(dot( lightVector, normal ), 0.0f) / ( (float) (4 * M_PI) * radius * radius );
+}
+
+// vec3 DirectLight( const Intersection& intersection ) {
+//
+//     vec3  diff = light.lightPos - intersection.position;
+//     vec3  normal = triangles[intersection.triangleIndex].normal;
+//     float radius = glm::distance(light.lightPos, intersection.position);
+//     vec3  light  = glm::normalize( diff );
+//
+//     vec3 color = light.lightColor / ( (float) (4.0f * M_PI) * radius * radius );
+//     float aux = std::max(glm::dot( light, normal ), 0.0f);
+//
+//     return color *  aux;
+// } Se cam fute lumina
