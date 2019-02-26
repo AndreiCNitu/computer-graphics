@@ -236,10 +236,7 @@ bool TriangleIntersection( vec4 start, vec4 dir, Triangle triangle, Intersection
 
     if (t >= 0 && u >= 0 && v >= 0 && (u + v) <= 1 ) {
         intersection.position = start + t * dir;
-        float dx2 = (start.x - intersection.position.x) * (start.x - intersection.position.x);
-        float dy2 = (start.y - intersection.position.y) * (start.y - intersection.position.y);
-        float dz2 = (start.z - intersection.position.y) * (start.z - intersection.position.z);
-        intersection.distance = sqrt(dx2 + dy2 + dz2);
+        intersection.distance = length(start - intersection.position);
         return true;
     } else {
         return false;
@@ -290,17 +287,18 @@ void RotateY( mat4& rotation, float rad ) {
 }
 
 vec3 DirectLight( const Intersection& intersection ) {
-    
-    vec3  normal = triangles[intersection.triangleIndex].normal;
+
+    vec4  normalH = triangles[intersection.triangleIndex].normal;
+    vec3  normal = (vec3) normalH;
     vec3  lightVector  = light.position - intersection.position;
     float radius = length( lightVector );
     lightVector = normalize( lightVector );
-    vec4 lightVectorH = vec4(lightVector.x, lightVector.y, lightVector.z, 1.0);
+    vec4 lightVectorH = vec4(lightVector.x, lightVector.y, lightVector.z, 1.0f);
 
     vec3 returnVector = light.color * max(dot( lightVector, normal ), 0.0f)
                       / ( (float) (4 * M_PI) * radius * radius );
     Intersection shadowIntersect;
-    if (ClosestIntersection(intersection.position + lightVectorH * SHADOW_BIAS,
+    if (ClosestIntersection(intersection.position + normalH * SHADOW_BIAS,
                             lightVectorH, triangles, shadowIntersect)) {
         if (radius > shadowIntersect.distance) {
             returnVector = vec3(0.0f, 0.0f, 0.0f);

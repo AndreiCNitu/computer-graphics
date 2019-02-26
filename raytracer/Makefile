@@ -3,7 +3,7 @@ GLMDIR=../glm/
 EXEC=$(FILE)
 
 # default build settings
-CC_OPTS=-c -pipe -Wall -Wno-switch -ggdb -g3 -O3 -qopenmp
+CC_OPTS=-c -pipe -Wall -Wno-switch -O3 -qopenmp
 LN_OPTS=-qopenmp
 CC=icpc
 
@@ -20,6 +20,11 @@ $(FILE).o : $(FILE).cpp SDLauxiliary.h TestModelH.h
 # Build rule
 build : $(OBJ) Makefile
 	$(CC) $(LN_OPTS) -o $(EXEC) $(OBJ) $(SDL_LDFLAGS)
+
+run :
+	make clean
+	make build
+	./raytracer
 
 # Clean rule
 .PHONY: clean
