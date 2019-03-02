@@ -33,10 +33,18 @@ struct Light {
     float move;
 };
 
-#define SCREEN_WIDTH 2560
+#define SCREEN_WIDTH  2560
 #define SCREEN_HEIGHT 1600
 #define FULLSCREEN_MODE true
 #define SHADOW_BIAS 0.0001f
+/*  6   2   7
+**    \ | /
+** 3 -- 1 -- 4
+**    / | \
+**  8   5   9
+** Set to 1/5/9 */
+#define AA_SAMPLES 1
+
 
 vector<Triangle> triangles;
 struct Camera camera;
@@ -63,8 +71,8 @@ int main( int argc, char* argv[] ) {
     screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
 
     // Initialise camera
-    camera.focalLength = SCREEN_HEIGHT / 2;
-    camera.position = vec4( 0.0, 0.0, -2.2, 1.0);
+    camera.focalLength = SCREEN_HEIGHT;
+    camera.position = vec4( 0.0, 0.0, -3.001f, 1.0);
     camera.rotation = mat4(vec4(1.0, 0.0, 0.0, 1.0),
                            vec4(0.0, 1.0, 0.0, 1.0),
                            vec4(0.0, 0.0, 1.0, 1.0),
@@ -91,21 +99,25 @@ int main( int argc, char* argv[] ) {
 void Draw(screen* screen) {
     /* Clear buffer */
     memset(screen->buffer, 0, screen->height * screen->width * sizeof(uint32_t));
+    float col_offset[9] = {0.0f,  0.0f, -0.5f, 0.5f, 0.0f, -0.5f,  0.5f, -0.5f, 0.5f};
+    float row_offset[9] = {0.0f, -0.5f,  0.0f, 0.0f, 0.5f, -0.5f, -0.5f,  0.5f, 0.5f};
 
     // Loop throught all pixels
     #pragma omp parallel for
     for (int row = 0; row < SCREEN_HEIGHT; row++) {
         for (int col = 0; col < SCREEN_WIDTH; col++) {
-            vec4 primaryRay = camera.rotation * vec4(col - SCREEN_WIDTH  / 2.0f,
-                                                     row - SCREEN_HEIGHT / 2.0f,
-                                                     camera.focalLength, 0.0);
-            Intersection primaryIntersect;
-            vec3 intersectColor = vec3(0,0,0);
-            if (ClosestIntersection(camera.position, primaryRay, triangles, primaryIntersect)) {
-                intersectColor = triangles[primaryIntersect.triangleIndex].color
-                               * (DirectLight(primaryIntersect) + light.indirect);
+            vec3 pixelColor = vec3(0,0,0);
+            for(int sample = 0; sample < AA_SAMPLES; sample++) {
+                vec4 primaryRay = camera.rotation * vec4(col - SCREEN_WIDTH  / 2.0f + col_offset[sample],
+                                                         row - SCREEN_HEIGHT / 2.0f + row_offset[sample],
+                                                         camera.focalLength, 0.0);
+                Intersection primaryIntersect;
+                if (ClosestIntersection(camera.position, primaryRay, triangles, primaryIntersect)) {
+                    pixelColor += triangles[primaryIntersect.triangleIndex].color
+                                * (DirectLight(primaryIntersect) + light.indirect);
+                }
             }
-            PutPixelSDL(screen, col, row, intersectColor);
+            PutPixelSDL(screen, col, row, pixelColor / (float) AA_SAMPLES);
         }
     }
 }
@@ -195,8 +207,8 @@ bool Update() {
 
                 // Reset camera
                 case SDLK_SPACE:
-                    camera.position = vec4( 0.0, 0.0, -2.2, 1.0);
-                    camera.focalLength = SCREEN_HEIGHT / 2;
+                   camera.focalLength = SCREEN_HEIGHT;
+                    camera.position = vec4( 0.0, 0.0, -3.001f, 1.0);
                     camera.rotation = mat4(vec4(1.0, 0.0, 0.0, 1.0),
                                            vec4(0.0, 1.0, 0.0, 1.0),
                                            vec4(0.0, 0.0, 1.0, 1.0),
@@ -227,7 +239,7 @@ bool TriangleIntersection( vec4 start, vec4 dir, Triangle triangle, Intersection
 
     // v0 + ue1 + ve2 = s + td
     mat3 A( -dir, e1, e2 );
-    vec3 x  = glm::inverse( A ) * b;
+    vec3  x = glm::inverse( A ) * b;
     float t = x.x;
     float u = x.y;
     float v = x.z;
