@@ -20,7 +20,7 @@ struct Camera {
 };
 
 vector<Triangle> triangles;
-struct Camera camera;
+Camera camera;
 
 #define SCREEN_WIDTH  2560
 #define SCREEN_HEIGHT 1600
@@ -32,6 +32,14 @@ void VertexShader( const vec4& vertex, ivec2& pixel );
 void Interpolate( ivec2 a, ivec2 b, vector<ivec2>& result );
 void DrawLineSDL( screen* screen, ivec2 a, ivec2 b, vec3 color );
 void DrawPolygonEdges( screen* screen, const vector<vec4>& vertices );
+void ComputePolygonRows( const vector<ivec2>& vertexPixels,
+                               vector<ivec2>& leftPixels,
+                               vector<ivec2>& rightPixels );
+void DrawPolygonRows( screen* screen, vec3 color,
+                      const vector<ivec2>& leftPixels,
+                      const vector<ivec2>& rightPixels );
+void DrawPolygon( screen* screen, vec3 color, const vector<vec4>& vertices );
+
 
 int main( int argc, char* argv[] ) {
     screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
@@ -59,15 +67,16 @@ int main( int argc, char* argv[] ) {
 /*Place your drawing here*/
 void Draw(screen* screen) {
     /* Clear buffer */
-    memset(screen->buffer, 0, screen->height*screen->width*sizeof(uint32_t));
+    memset(screen->buffer, 0, screen->height * screen->width * sizeof(uint32_t));
 
     for(int i = 0; i < triangles.size(); i++) {
+        vec3 triangleColor = triangles[i].color;
         vector<vec4> vertices(3);
 
         vertices[0] = triangles[i].v0;
         vertices[1] = triangles[i].v1;
         vertices[2] = triangles[i].v2;
-        DrawPolygonEdges( screen, vertices );
+        DrawPolygon( screen, triangleColor, vertices );
     }
 }
 
@@ -78,7 +87,7 @@ bool Update() {
     int t2 = SDL_GetTicks();
     float dt = float(t2-t);
     t = t2;
-    cout << "Render time: " << dt << " ms." << endl;
+    //cout << "Render time: " << dt << " ms." << endl;
 
     SDL_Event e;
     while(SDL_PollEvent(&e)) {
@@ -110,8 +119,8 @@ bool Update() {
 
 void VertexShader( const vec4& vertex, ivec2& pixel ) {
     float f = camera.focalLength;
-    float X = vertex.x;
-    float Y = vertex.y;
+    float X = vertex.x - camera.position.x;
+    float Y = vertex.y - camera.position.y;
     float Z = vertex.z - camera.position.z;
 
     pixel.x = (f * X / Z) + SCREEN_WIDTH / 2;
@@ -120,7 +129,7 @@ void VertexShader( const vec4& vertex, ivec2& pixel ) {
 
 void Interpolate( ivec2 a, ivec2 b, vector<ivec2>& result ) {
     int N = result.size();
-    vec2 step = vec2(b-a) / float(max(N-1,1));
+    vec2 step = vec2(b - a) / float(max(N - 1, 1));
     vec2 current( a );
     for(int i = 0; i < N; i++) {
         result[i] = current;
@@ -130,11 +139,11 @@ void Interpolate( ivec2 a, ivec2 b, vector<ivec2>& result ) {
 
 void DrawLineSDL( screen* screen, ivec2 a, ivec2 b, vec3 color ) {
     ivec2 delta = glm::abs( a - b );
-    int pixels  = glm::max( delta.x, delta.y ) + 1;
+    int  pixels = glm::max( delta.x, delta.y ) + 1;
     vector<ivec2> line( pixels );
     Interpolate( a, b, line );
     for(int i = 0; i < pixels; i++) {
-        PutPixelSDL(screen, line[i].x, line[i].y, vec3(1,1,1));
+        PutPixelSDL(screen, line[i].x, line[i].y, color);
     }
 }
 
@@ -151,4 +160,64 @@ void DrawPolygonEdges( screen* screen, const vector<vec4>& vertices ) {
         vec3 color( 1, 1, 1 );
         DrawLineSDL( screen, projectedVertices[i], projectedVertices[j], color );
     }
+}
+
+void ComputePolygonRows( const vector<ivec2>& vertexPixels,
+                               vector<ivec2>& leftPixels,
+                               vector<ivec2>& rightPixels ) {
+    int maxY = max( vertexPixels[0].y, max(vertexPixels[1].y, vertexPixels[2].y));
+    int minY = min( vertexPixels[0].y, min(vertexPixels[1].y, vertexPixels[2].y));
+    int rows = maxY - minY + 1;
+
+    leftPixels.resize(rows);
+	rightPixels.resize(rows);
+    for( int i = 0; i < rows; i++ ) {
+		leftPixels[i].x  = +numeric_limits<int>::max();
+		rightPixels[i].x = -numeric_limits<int>::max();
+        // Initialise y values
+        leftPixels[i].y  = i + minY;
+        rightPixels[i].y = i + minY;
+	}
+
+    int E = vertexPixels.size();
+    for( int e = 0; e < E; e++ ) {
+        ivec2 a = vertexPixels[e];
+        ivec2 b = vertexPixels[(e + 1) % E];
+        int deltaY = abs( a.y - b.y ) + 1;
+        vector<ivec2> edge(deltaY);
+        Interpolate( a, b, edge );
+        for(int p = 0; p < edge.size(); p++) {
+            // relative index
+            int idx = edge[p].y - minY;
+            if( edge[p].x < leftPixels[idx].x ) {
+                leftPixels[idx].x = edge[p].x;
+            }
+            if( edge[p].x > rightPixels[idx].x ) {
+                rightPixels[idx].x = edge[p].x;
+            }
+        }
+    }
+}
+
+void DrawPolygonRows( screen* screen, vec3 color,
+                      const vector<ivec2>& leftPixels,
+                      const vector<ivec2>& rightPixels ) {
+    for( int row = 0; row < leftPixels.size(); row++ ) {
+        // for( int col = leftPixels[row].x; col < rightPixels[row].x; col++ ) {
+        //     PutPixelSDL( screen, col, row, color );
+        // }
+        DrawLineSDL( screen, leftPixels[row], rightPixels[row], color );
+    }
+}
+
+void DrawPolygon( screen* screen, vec3 color, const vector<vec4>& vertices ) {
+    int V = vertices.size();
+    vector<ivec2> vertexPixels( V );
+    for( int i = 0; i < V; i++ ) {
+        VertexShader( vertices[i], vertexPixels[i] );
+    }
+    vector<ivec2> leftPixels;
+    vector<ivec2> rightPixels;
+    ComputePolygonRows( vertexPixels, leftPixels, rightPixels );
+    DrawPolygonRows( screen, color, leftPixels, rightPixels );
 }
