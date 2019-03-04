@@ -1,12 +1,21 @@
-## Raytracer
+# Raytracer
 
-#### Usage (not yet fully implemented)
+### Usage
 ```
 Usage: ./raytracer [OPTIONS]
   --cornell-box        load test model
   --load <file.obj>    load custom model
-  --anti-aliasing N    set number of samples per ray (1/5/9)
-  --resolution W H     set resolution
 ```
 
-## Rasteriser
+### Controls
+```
+ Move view:             Move light:             Rotate camera:
+
+     W                      I                         ^
+  A  S  D                J  K  L                   <  v  >
+
+  Q --> up               U --> up
+  E --> down             P --> down
+```
+
+# Rasteriser

@@ -34,8 +34,8 @@ struct Light {
     float moveSpeed;
 };
 
-#define SCREEN_WIDTH  2560
-#define SCREEN_HEIGHT 1600
+#define SCREEN_WIDTH  256
+#define SCREEN_HEIGHT 160
 #define FULLSCREEN_MODE true
 #define SHADOW_BIAS 0.0001f
 /*  6   2   7
@@ -147,70 +147,70 @@ bool Update() {
 	        int key_code = e.key.keysym.sym;
 	        switch(key_code) {
 
-                // Translate camera forward
-                case SDLK_i:
+                case SDLK_w:
+                    // Translate camera forward
                     camera.position += camera.moveSpeed * camera.rotation * vec4(0, 0, 0.1f, 0);
                     break;
-                // Translate camera backwards
-                case SDLK_k:
+                case SDLK_s:
+                    // Translate camera backwards
                     camera.position -= camera.moveSpeed * camera.rotation * vec4(0, 0, 0.1f, 0);
                     break;
-                // Translate camera left
-                case SDLK_j:
+                case SDLK_a:
+                    // Translate camera left
                     camera.position -= camera.moveSpeed * camera.rotation * vec4(0.1f, 0, 0, 0);
                     break;
-                // Translate camera right
-                case SDLK_l:
+                case SDLK_d:
+                    // Translate camera right
                     camera.position += camera.moveSpeed * camera.rotation * vec4(0.1f, 0, 0, 0);
                     break;
-                // Translate camera up
-                case SDLK_u:
+                case SDLK_q:
+                    // Translate camera up
                     camera.position -= camera.moveSpeed * camera.rotation * vec4(0, 0.1f, 0, 0);
                     break;
-                // Translate camera down
-                case SDLK_o:
+                case SDLK_e:
+                    // Translate camera down
                     camera.position += camera.moveSpeed * camera.rotation * vec4(0, 0.1f, 0, 0);
                     break;
 
-                // Rotate camera left
 	            case SDLK_LEFT:
+                    // Rotate camera left
                     RotateY(camera.rotation, -0.1f);
 		            break;
-                // Rotate camera right
 	            case SDLK_RIGHT:
+                    // Rotate camera right
                     RotateY(camera.rotation, 0.1f);
 		            break;
-                // Rotate camera up
                 case SDLK_UP:
+                    // Rotate camera up
                     RotateX(camera.rotation, 0.1f);
 		            break;
-                // Rotate camera down
 	            case SDLK_DOWN:
+                    // Rotate camera down
                     RotateX(camera.rotation, -0.1f);
 		            break;
 
-                // Translate light forward
-                case SDLK_w:
+                case SDLK_i:
+                    // Translate light forward
                     light.position += light.moveSpeed * vec4(0, 0, 1.0f, 0);
                     break;
-                // Translate light backwards
-                case SDLK_s:
+                case SDLK_k:
+                    // Translate light backwards
                     light.position -= light.moveSpeed * vec4(0, 0, 1.0f, 0);
                     break;
-                // Translate light left
-                case SDLK_a:
+                case SDLK_j:
+                    // Translate light left
                     light.position -= light.moveSpeed * vec4(1.0f, 0, 0, 0);
                     break;
-                // Translate light right
-                case SDLK_d:
+                case SDLK_l:
+                    // Translate light right
                     light.position += light.moveSpeed * vec4(1.0f, 0, 0, 0);
                     break;
-                // Translate light up
-                case SDLK_q:
+                case SDLK_u:
+                    // Translate light up
                     light.position -= light.moveSpeed * vec4(0, 1.0f, 0, 0);
                     break;
-                // Translate light down
-                case SDLK_e:
+                case SDLK_o:
+                    // Translate light down
                     light.position += light.moveSpeed * vec4(0, 1.0f, 0, 0);
                     break;
 
@@ -218,7 +218,6 @@ bool Update() {
                 case SDLK_SPACE:
                     InitialiseParams();
 		            break;
-
                 // Move camera quit
 	            case SDLK_ESCAPE:
 		            return false;
