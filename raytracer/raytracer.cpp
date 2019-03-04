@@ -7,7 +7,6 @@
 #include <stdint.h>
 #include <limits>
 #include <math.h>
-#include <omp.h>
 
 using namespace std;
 using glm::vec3;
@@ -35,8 +34,8 @@ struct Light {
     float moveSpeed;
 };
 
-#define SCREEN_WIDTH  1920
-#define SCREEN_HEIGHT 1080
+#define SCREEN_WIDTH  2560
+#define SCREEN_HEIGHT 1600
 #define FULLSCREEN_MODE true
 #define SHADOW_BIAS 0.0001f
 /*  6   2   7
@@ -80,7 +79,6 @@ int main( int argc, char* argv[] ) {
         LoadTestModel( triangles );
         cout << "Cornell box loaded successfully." << endl;
     } else if (argc == 3 && strcmp("--load",        argv[1]) == 0 ) {
-        cout << "primu segfault -- " << argv[2] << endl;
         if (LoadModel( triangles, argv[2] )) {
             cout << argv[2] << " model loaded successfully." << endl;
         } else {
@@ -259,14 +257,24 @@ bool TriangleIntersection( vec4 start, vec4 dir, Triangle triangle, Intersection
 
     // v0 + ue1 + ve2 = s + td
     mat3 A( -dir, e1, e2 );
-    vec3  x = glm::inverse( A ) * b;
-    float t = x.x;
-    float u = x.y;
-    float v = x.z;
+    const float detA  = glm::determinant( A );
+
+    float t = glm::determinant( mat3(   b, e1, e2 ) ) / detA;
+    if (t < 0) {
+        return false;
+    }
+    float u = glm::determinant( mat3( -dir, b, e2 ) ) / detA;
+    if (u < 0) {
+        return false;
+    }
+    float v = glm::determinant( mat3( -dir, e1, b ) ) / detA;
+    if (v < 0) {
+        return false;
+    }
 
     intersection.distance = std::numeric_limits<float>::max();
 
-    if (t >= 0 && u >= 0 && v >= 0 && (u + v) <= 1 ) {
+    if ( (u + v) <= 1 ) {
         intersection.position = start + t * dir;
         intersection.distance = length(start - intersection.position);
         return true;

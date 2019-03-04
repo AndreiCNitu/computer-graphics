@@ -3,7 +3,7 @@ GLMDIR=../glm/
 EXEC=$(FILE)
 
 # default build settings
-CC_OPTS=-c -pipe -Wall -Wno-switch -O3 -qopenmp
+CC_OPTS=-c -pipe -Wall -Wno-switch -Ofast -qopenmp
 LN_OPTS=-qopenmp
 CC=icpc
 
@@ -21,7 +21,7 @@ $(FILE).o : $(FILE).cpp SDLauxiliary.h TestModelH.h
 build : $(OBJ) Makefile
 	$(CC) $(LN_OPTS) -o $(EXEC) $(OBJ) $(SDL_LDFLAGS)
 
-run :
+run-cornell :
 	make clean
 	make build
 	./raytracer --cornell-box

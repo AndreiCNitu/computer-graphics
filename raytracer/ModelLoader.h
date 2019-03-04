@@ -19,7 +19,6 @@ using glm::vec4;
 using glm::mat4;
 
 bool LoadModel( std::vector<Triangle>& triangles, const char* filename ) {
-    cout << "al doilea segfault" << endl;
     char* folder = (char*) malloc(8 * sizeof(char));
     char  path[256];
     folder  = "Models/";
@@ -61,7 +60,7 @@ bool LoadModel( std::vector<Triangle>& triangles, const char* filename ) {
             cout << "vn " << normals[vnInd].x << "\t" << normals[vnInd].y << "\t" << normals[vnInd].z << endl;
             vnInd++;
         } else if (header == "f") {
-            vec3 color = vec3(2.0f, 2.0f, 2.0f);
+            vec3 color = vec3(5.0f, 1.0f, 1.0f);
             vec4 v[3], normals[3];
             int vertexInd[3], textureInd[3], normalInd[3];
             input >> header >> s[0] >> s[1] >> s[2];
