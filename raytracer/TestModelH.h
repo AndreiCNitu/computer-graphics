@@ -15,6 +15,16 @@ public:
     glm::vec4 normal;
     glm::vec3 color;
 
+    Triangle( glm::vec4 v0, glm::vec4 v1, glm::vec4 v2, glm::vec4 normal, glm::vec3 color )
+        : v0(v0), v1(v1), v2(v2), normal(normal), color(color) {
+        glm::vec3 normal3 = normal;
+        normal3 = glm::normalize( normal3 );
+        normal.x = normal3.x;
+        normal.y = normal3.y;
+        normal.z = normal3.z;
+        normal.w = 1.0f;
+    }
+
 	Triangle( glm::vec4 v0, glm::vec4 v1, glm::vec4 v2, glm::vec3 color )
         : v0(v0), v1(v1), v2(v2), color(color) {
         ComputeNormal();
@@ -27,7 +37,7 @@ public:
         normal.x = normal3.x;
         normal.y = normal3.y;
         normal.z = normal3.z;
-        normal.w = 1.0;
+        normal.w = 1.0f;
 	}
 };
 

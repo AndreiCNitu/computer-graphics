@@ -3,6 +3,7 @@
 #include <SDL.h>
 #include "SDLauxiliary.h"
 #include "TestModelH.h"
+#include "ModelLoader.h"
 #include <stdint.h>
 #include <limits>
 #include <math.h>
@@ -24,17 +25,18 @@ struct Camera {
     float focalLength;
     vec4  position;
     mat4  rotation;
+    float moveSpeed;
 };
 
 struct Light {
     vec4  position;
     vec3  color;
     vec3  indirect;
-    float move;
+    float moveSpeed;
 };
 
-#define SCREEN_WIDTH  2560
-#define SCREEN_HEIGHT 1600
+#define SCREEN_WIDTH  1920
+#define SCREEN_HEIGHT 1080
 #define FULLSCREEN_MODE true
 #define SHADOW_BIAS 0.0001f
 /*  6   2   7
@@ -65,25 +67,34 @@ bool ClosestIntersection(
 void RotateX( mat4& rotation, float rad );
 void RotateY( mat4& rotation, float rad );
 vec3 DirectLight( const Intersection& intersection );
-vec3 triangleNormal(Triangle t);
+void InitialiseParams(); // Initialise camera and light
 
 int main( int argc, char* argv[] ) {
+
+    if (argc > 3) {
+        cout << "Too many arguments." << endl;
+        cout << "Usage: ./raytracer --cornell-box or ./raytracer --load <model.obj>" << endl;
+        exit(1);
+    } else if (argc == 2 && ( strcmp("--cornell-box", argv[1]) == 0 ) ||
+               argc == 1) {
+        LoadTestModel( triangles );
+        cout << "Cornell box loaded successfully." << endl;
+    } else if (argc == 3 && strcmp("--load",        argv[1]) == 0 ) {
+        cout << "primu segfault -- " << argv[2] << endl;
+        if (LoadModel( triangles, argv[2] )) {
+            cout << argv[2] << " model loaded successfully." << endl;
+        } else {
+            cout << "Unable to load " << argv[2] << endl;
+            exit(1);
+        }
+    } else {
+        cout << "Unknown command." << endl;
+        cout << "Usage: ./raytracer --cornell-box or ./raytracer --load <model.obj>" << endl;
+        exit(1);
+    }
+
     screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
-
-    // Initialise camera
-    camera.focalLength = SCREEN_HEIGHT;
-    camera.position = vec4( 0.0, 0.0, -3.001f, 1.0);
-    camera.rotation = mat4(vec4(1.0, 0.0, 0.0, 1.0),
-                           vec4(0.0, 1.0, 0.0, 1.0),
-                           vec4(0.0, 0.0, 1.0, 1.0),
-                           vec4(0.0, 0.0, 0.0, 1.0));
-
-    light.position = vec4( 0.0f, -0.5f, -0.7f, 1.0f );
-    light.color = 14.0f * vec3( 1.0, 1.0, 1.0 );
-    light.indirect = 0.2f*vec3( 1, 1, 1 );
-    light.move = 0.1f;
-
-    LoadTestModel( triangles );
+    InitialiseParams();
 
     while ( Update() ) {
         Draw(screen);
@@ -140,27 +151,27 @@ bool Update() {
 
                 // Translate camera forward
                 case SDLK_i:
-                    camera.position += camera.rotation * vec4(0, 0, 0.1f, 0);
+                    camera.position += camera.moveSpeed * camera.rotation * vec4(0, 0, 0.1f, 0);
                     break;
                 // Translate camera backwards
                 case SDLK_k:
-                    camera.position -= camera.rotation * vec4(0, 0, 0.1f, 0);
+                    camera.position -= camera.moveSpeed * camera.rotation * vec4(0, 0, 0.1f, 0);
                     break;
                 // Translate camera left
                 case SDLK_j:
-                    camera.position -= camera.rotation * vec4(0.1f, 0, 0, 0);
+                    camera.position -= camera.moveSpeed * camera.rotation * vec4(0.1f, 0, 0, 0);
                     break;
                 // Translate camera right
                 case SDLK_l:
-                    camera.position += camera.rotation * vec4(0.1f, 0, 0, 0);
+                    camera.position += camera.moveSpeed * camera.rotation * vec4(0.1f, 0, 0, 0);
                     break;
                 // Translate camera up
                 case SDLK_u:
-                    camera.position -= camera.rotation * vec4(0, 0.1f, 0, 0);
+                    camera.position -= camera.moveSpeed * camera.rotation * vec4(0, 0.1f, 0, 0);
                     break;
                 // Translate camera down
                 case SDLK_o:
-                    camera.position += camera.rotation * vec4(0, 0.1f, 0, 0);
+                    camera.position += camera.moveSpeed * camera.rotation * vec4(0, 0.1f, 0, 0);
                     break;
 
                 // Rotate camera left
@@ -182,38 +193,32 @@ bool Update() {
 
                 // Translate light forward
                 case SDLK_w:
-                    light.position += light.move * vec4(0, 0, 1.0f, 0);
+                    light.position += light.moveSpeed * vec4(0, 0, 1.0f, 0);
                     break;
                 // Translate light backwards
                 case SDLK_s:
-                    light.position -= light.move * vec4(0, 0, 1.0f, 0);
+                    light.position -= light.moveSpeed * vec4(0, 0, 1.0f, 0);
                     break;
                 // Translate light left
                 case SDLK_a:
-                    light.position -= light.move * vec4(1.0f, 0, 0, 0);
+                    light.position -= light.moveSpeed * vec4(1.0f, 0, 0, 0);
                     break;
                 // Translate light right
                 case SDLK_d:
-                    light.position += light.move * vec4(1.0f, 0, 0, 0);
+                    light.position += light.moveSpeed * vec4(1.0f, 0, 0, 0);
                     break;
                 // Translate light up
                 case SDLK_q:
-                    light.position -= light.move * vec4(0, 1.0f, 0, 0);
+                    light.position -= light.moveSpeed * vec4(0, 1.0f, 0, 0);
                     break;
                 // Translate light down
                 case SDLK_e:
-                    light.position += light.move * vec4(0, 1.0f, 0, 0);
+                    light.position += light.moveSpeed * vec4(0, 1.0f, 0, 0);
                     break;
 
-                // Reset camera
+                // Reset camera and light
                 case SDLK_SPACE:
-                   camera.focalLength = SCREEN_HEIGHT;
-                    camera.position = vec4( 0.0, 0.0, -3.001f, 1.0);
-                    camera.rotation = mat4(vec4(1.0, 0.0, 0.0, 1.0),
-                                           vec4(0.0, 1.0, 0.0, 1.0),
-                                           vec4(0.0, 0.0, 1.0, 1.0),
-                                           vec4(0.0, 0.0, 0.0, 1.0));
-                    light.position = vec4( 0.0f, -0.5f, -0.7f, 1.0f );
+                    InitialiseParams();
 		            break;
 
                 // Move camera quit
@@ -224,6 +229,21 @@ bool Update() {
 	    }
     }
     return true;
+}
+
+void InitialiseParams() {
+    camera.focalLength = SCREEN_HEIGHT;
+    camera.position = vec4( 0.0, 0.0, -3.001f, 1.0);
+    camera.rotation = mat4(vec4(1.0, 0.0, 0.0, 1.0),
+                           vec4(0.0, 1.0, 0.0, 1.0),
+                           vec4(0.0, 0.0, 1.0, 1.0),
+                           vec4(0.0, 0.0, 0.0, 1.0));
+    camera.moveSpeed = 1.0f;
+
+    light.position = vec4( 0.0f, -0.5f, -0.7f, 1.0f );
+    light.color = 14.0f * vec3( 1.0, 1.0, 1.0 );
+    light.indirect = 0.2f*vec3( 1, 1, 1 );
+    light.moveSpeed = 0.1f;
 }
 
 bool TriangleIntersection( vec4 start, vec4 dir, Triangle triangle, Intersection& intersection ) {
