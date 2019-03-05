@@ -125,10 +125,9 @@ bool Update() {
 	    } else if (e.type == SDL_KEYDOWN) {
 	        int key_code = e.key.keysym.sym;
 	        switch(key_code) {
-
-                // Translate camera forward
-                case SDLK_i:
-                    camera.position += camera.rotation * vec4(0, 0, 0.1f, 0);
+                case SDLK_w:
+                    // Translate camera forward
+                    camera.position += camera.moveSpeed * camera.rotation * vec4(0, 0, 0.1f, 0);
                     break;
                 // Translate camera backwards
                 case SDLK_k:
@@ -150,8 +149,6 @@ bool Update() {
                 case SDLK_o:
                     camera.position += camera.rotation * vec4(0, 0.1f, 0, 0);
                     break;
-
-                // Rotate camera left
 	            case SDLK_LEFT:
                     RotateY(camera.rotation, -0.1f);
 		            break;
@@ -167,10 +164,9 @@ bool Update() {
 	            case SDLK_DOWN:
                     RotateX(camera.rotation, -0.1f);
 		            break;
-
-                // Translate light forward
-                case SDLK_w:
-                    light.position += light.move * vec4(0, 0, 1.0f, 0);
+                case SDLK_i:
+                    // Translate light forward
+                    light.position += light.moveSpeed * vec4(0, 0, 1.0f, 0);
                     break;
                 // Translate light backwards
                 case SDLK_s:
@@ -192,22 +188,13 @@ bool Update() {
                 case SDLK_e:
                     light.position += light.move * vec4(0, 1.0f, 0, 0);
                     break;
-
-                // Reset camera
                 case SDLK_SPACE:
-                    camera.position = vec4( 0.0, 0.0, -2.2, 1.0);
-                    camera.focalLength = SCREEN_HEIGHT / 2;
-                    camera.rotation = mat4(vec4(1.0, 0.0, 0.0, 1.0),
-                                           vec4(0.0, 1.0, 0.0, 1.0),
-                                           vec4(0.0, 0.0, 1.0, 1.0),
-                                           vec4(0.0, 0.0, 0.0, 1.0));
-                    light.position = vec4( 0.0f, -0.5f, -0.7f, 1.0f );
+                    // Reset camera and light
+                    InitialiseParams();
 		            break;
-
-                // Move camera quit
 	            case SDLK_ESCAPE:
+                    // Quit
 		            return false;
-                    break;
             }
 	    }
     }

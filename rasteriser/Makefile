@@ -3,7 +3,7 @@ GLMDIR=../glm/
 EXEC=$(FILE)
 
 # default build settings
-CC_OPTS=-c -pipe -Wall -Wno-switch -ggdb -g3 -O3 -qopenmp
+CC_OPTS=-c -pipe -Wall -Wno-switch -O3 -qopenmp
 LN_OPTS=-qopenmp
 CC=icpc
 
