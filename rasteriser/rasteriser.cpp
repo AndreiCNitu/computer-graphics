@@ -16,7 +16,10 @@ using glm::mat4;
 struct Camera {
     float focalLength;
     vec4  position;
+    vec4  translation;
     mat4  rotation;
+    float moveSpeed;
+    float rotationSpeed;
 };
 
 vector<Triangle> triangles;
@@ -28,6 +31,9 @@ Camera camera;
 
 bool Update();
 void Draw(screen* screen);
+void InitialiseParams(); // Initialise camera and light
+void RotateX( mat4& rotation, float rad );
+void RotateY( mat4& rotation, float rad );
 void VertexShader( const vec4& vertex, ivec2& pixel );
 void Interpolate( ivec2 a, ivec2 b, vector<ivec2>& result );
 void DrawLineSDL( screen* screen, ivec2 a, ivec2 b, vec3 color );
@@ -43,13 +49,7 @@ void DrawPolygon( screen* screen, vec3 color, const vector<vec4>& vertices );
 
 int main( int argc, char* argv[] ) {
     screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
-
-    camera.focalLength = SCREEN_HEIGHT;
-    camera.position = vec4( 0.0, 0.0, -3.001f, 1.0);
-    camera.rotation = mat4(vec4(1.0, 0.0, 0.0, 1.0),
-                           vec4(0.0, 1.0, 0.0, 1.0),
-                           vec4(0.0, 0.0, 1.0, 1.0),
-                           vec4(0.0, 0.0, 0.0, 1.0));
+    InitialiseParams();
 
     LoadTestModel( triangles );
 
@@ -80,50 +80,132 @@ void Draw(screen* screen) {
     }
 }
 
-/*Place updates of parameters here*/
 bool Update() {
     static int t = SDL_GetTicks();
     /* Compute frame time */
     int t2 = SDL_GetTicks();
     float dt = float(t2-t);
     t = t2;
-    //cout << "Render time: " << dt << " ms." << endl;
+    cout << "Render time: " << dt << " ms." << endl;
 
-    SDL_Event e;
-    while(SDL_PollEvent(&e)) {
-        if (e.type == SDL_QUIT) {
+    SDL_Event event;
+    SDL_SetRelativeMouseMode(SDL_TRUE);
+    while(SDL_PollEvent(&event)) {
+        if (event.type == SDL_QUIT) {
 	        return false;
-        } else if (e.type == SDL_KEYDOWN) {
-            int key_code = e.key.keysym.sym;
+        } else if (event.type == SDL_KEYDOWN) {
+            int key_code = event.key.keysym.sym;
+            float S = camera.moveSpeed;
             switch(key_code) {
-                case SDLK_UP:
+                case SDLK_w:
                     /* Move camera forward */
-                break;
-                case SDLK_DOWN:
+                    camera.translation += S * vec4(0, 0, -1, 0);
+                    break;
+                case SDLK_s:
                     /* Move camera backwards */
-                break;
-                case SDLK_LEFT:
+                    camera.translation += S * vec4(0, 0,  1, 0);
+                    break;
+                case SDLK_a:
                     /* Move camera left */
-                break;
-                case SDLK_RIGHT:
+                    camera.translation += S * vec4( 1, 0, 0, 0);
+                    break;
+                case SDLK_d:
                     /* Move camera right */
-                break;
+                    camera.translation += S * vec4(-1, 0, 0, 0);
+                    break;
+                case SDLK_q:
+                    /* Move camera up */
+                    camera.translation += S * vec4(0,  1, 0, 0);
+                    break;
+                case SDLK_e:
+                    /* Move camera down */
+                    camera.translation += S * vec4(0, -1, 0, 0);
+                    break;
                 case SDLK_ESCAPE:
-                    /* Move camera quit */
-                return false;
+                    /* Quit */
+                    return false;
+                    break;
             }
+        } else if (event.type == SDL_MOUSEMOTION) {
+                int dx = event.motion.xrel;
+                int dy = event.motion.yrel;
+                float S = camera.rotationSpeed;
+                if (dx > 0) {
+                    // Rotate camera left
+	                RotateY(camera.rotation, -S);
+                } else {
+                    // Rotate camera right
+                    RotateY(camera.rotation,  S);
+                }
+                if (dy > 0) {
+                    // Rotate camera up
+	                RotateX(camera.rotation,  S);
+                } else {
+                    // Rotate camera down
+	                RotateX(camera.rotation, -S);
+                }
         }
     }
     return true;
 }
 
-void VertexShader( const vec4& vertex, ivec2& pixel ) {
-    float f = camera.focalLength;
-    float X = vertex.x - camera.position.x;
-    float Y = vertex.y - camera.position.y;
-    float Z = vertex.z - camera.position.z;
+void InitialiseParams() {
+    camera.focalLength = SCREEN_HEIGHT;
+    camera.position = vec4( 0.0, 0.0, -3.001f, 1.0);
+    camera.translation = vec4( 0.0f, 0.0f, 0.0f, 1.0f);
+    camera.rotation = mat4(vec4(1.0, 0.0, 0.0, 0.0),
+                           vec4(0.0, 1.0, 0.0, 0.0),
+                           vec4(0.0, 0.0, 1.0, 0.0),
+                           vec4(0.0, 0.0, 0.0, 1.0));
+    camera.moveSpeed     = 0.10f;
+    camera.rotationSpeed = 0.01f;
+}
 
-    pixel.x = (f * X / Z) + SCREEN_WIDTH / 2;
+void RotateX( mat4& rotation, float rad ) {
+    vec4 c1(1,        0,  0,        0);
+    vec4 c2(0,  cos(rad), sin(rad), 0);
+    vec4 c3(0, -sin(rad), cos(rad), 0);
+    vec4 c4(0,        0,  0,        1);
+
+    mat4 R = mat4(c1, c2, c3, c4);
+    rotation = R * rotation;
+}
+
+void RotateY( mat4& rotation, float rad ) {
+    vec4 c1(cos(rad), 0, -sin(rad), 0);
+    vec4 c2(0,        1,  0,        0);
+    vec4 c3(sin(rad), 0,  cos(rad), 0);
+    vec4 c4(0,        0,  0,        1);
+
+    mat4 R = mat4(c1, c2, c3, c4);
+    rotation = R * rotation;
+}
+
+mat4 TransformationMatrix() {
+    mat4 translationMatrix = mat4(vec4(1.0, 0.0, 0.0, 0.0),
+                                  vec4(0.0, 1.0, 0.0, 0.0),
+                                  vec4(0.0, 0.0, 1.0, 0.0),
+                                  camera.translation);
+
+    mat4 rotationMatrix = camera.rotation;
+
+    mat4 M = mat4(vec4(1.0, 0.0, 0.0, 0.0),
+                  vec4(0.0, 1.0, 0.0, 0.0),
+                  vec4(0.0, 0.0, 1.0, 0.0),
+                  vec4(-camera.position.x, -camera.position.y, -camera.position.z, 1.0f ));
+
+    return translationMatrix * rotationMatrix * M;
+}
+
+void VertexShader( const vec4& vertex, ivec2& pixel ) {
+
+    vec4 projection = TransformationMatrix() * vertex;
+    float f = camera.focalLength;
+    float X = projection.x;
+    float Y = projection.y;
+    float Z = projection.z;
+
+    pixel.x = (f * X / Z) + SCREEN_WIDTH  / 2;
     pixel.y = (f * Y / Z) + SCREEN_HEIGHT / 2;
 }
 
@@ -143,7 +225,12 @@ void DrawLineSDL( screen* screen, ivec2 a, ivec2 b, vec3 color ) {
     vector<ivec2> line( pixels );
     Interpolate( a, b, line );
     for(int i = 0; i < pixels; i++) {
-        PutPixelSDL(screen, line[i].x, line[i].y, color);
+        if (line[i].x >= 0            &&
+            line[i].y >= 0            &&
+            line[i].x <  SCREEN_WIDTH &&
+            line[i].y <  SCREEN_HEIGHT) {
+            PutPixelSDL(screen, line[i].x, line[i].y, color);
+        }
     }
 }
 
@@ -203,9 +290,6 @@ void DrawPolygonRows( screen* screen, vec3 color,
                       const vector<ivec2>& leftPixels,
                       const vector<ivec2>& rightPixels ) {
     for( int row = 0; row < leftPixels.size(); row++ ) {
-        // for( int col = leftPixels[row].x; col < rightPixels[row].x; col++ ) {
-        //     PutPixelSDL( screen, col, row, color );
-        // }
         DrawLineSDL( screen, leftPixels[row], rightPixels[row], color );
     }
 }
