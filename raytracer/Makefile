@@ -24,7 +24,7 @@ build : $(OBJ) Makefile
 run-cornell :
 	make clean
 	make build
-	./raytracer --cornell-box
+	./raytracer --realtime --cornell-box
 
 run-cube :
 	make clean

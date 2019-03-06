@@ -67,7 +67,7 @@ bool LoadModel( vector<Triangle>& triangles, const char* filename ) {
             vnInd++;
         } else if (header == "f") {
             // TODO: set color
-            vec3 color( 0.25f, 0.60f, 0.25f );
+            vec3 color = vec3(0.89, 0.19, 0.07);
             vec4 v[3], uv[3], normals[3];
             int vertexInd[3], textureInd[3], normalInd[3];
             input >> header >> s[0] >> s[1] >> s[2];

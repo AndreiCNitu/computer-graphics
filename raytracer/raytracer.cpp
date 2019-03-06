@@ -39,6 +39,9 @@ struct Light {
 #define SCREEN_HEIGHT 160
 #define FULLSCREEN_MODE true
 #define SHADOW_BIAS 0.00064f
+#define PHONG_N 200
+#define KD 0.80f
+#define KS 0.060f
 /*  6   2   7
 **    \ | /
 ** 3 -- 1 -- 4
@@ -66,7 +69,9 @@ bool ClosestIntersection(
       Intersection& closestIntersection );
 void RotateX( mat4& rotation, float rad );
 void RotateY( mat4& rotation, float rad );
-vec3 DirectLight( const Intersection& intersection );
+vec3 DirectLight(   const Intersection& intersection );
+vec3 DiffuseLight(  const Intersection& intersection );
+vec3 SpecularLight( const Intersection& intersection );
 void InitialiseParams(); // Initialise camera and light
 
 int main( int argc, char* argv[] ) {
@@ -143,11 +148,14 @@ void Draw(screen* screen) {
                                                          camera.focalLength, 0.0);
                 Intersection primaryIntersect;
                 if (ClosestIntersection(camera.position, primaryRay, triangles, primaryIntersect)) {
-                    vec3 triangleColor = triangles[primaryIntersect.triangleIndex].color;
-                    vec3 pointTexture  = vec3(5.0f, 5.0f, 5.0f);
-                    vec3 pointColor = (triangleColor == vec3(-1,-1,-1)) ? pointTexture : triangleColor;
-                    pixelColor += pointColor * (DirectLight(primaryIntersect) +
-                                                light.indirect);
+                    if (triangles[primaryIntersect.triangleIndex].color != vec3(0.89, 0.19, 0.07)) {
+                        pixelColor += triangles[primaryIntersect.triangleIndex].color
+                                    * (DirectLight(primaryIntersect) + light.indirect);
+                    } else {
+                        vec3 surfaceColor = triangles[primaryIntersect.triangleIndex].color;
+                        pixelColor += DiffuseLight(primaryIntersect ) * KD * surfaceColor
+                                    + SpecularLight(primaryIntersect) * KS;
+                    }
                 }
             }
             PutPixelSDL(screen, col, row, pixelColor / (float) AA_SAMPLES);
@@ -367,4 +375,29 @@ vec3 DirectLight( const Intersection& intersection ) {
         }
     }
     return returnVector;
+}
+
+vec3 DiffuseLight( const Intersection& intersection ) {
+    return DirectLight(intersection) + light.indirect;
+}
+
+vec3 SpecularLight( const Intersection& intersection ) {
+/*     R\   |N  /Li
+ *       \  |  /
+ *        \ | /
+ *_________\|/___________
+ * R = 2 • (N • L) N - L
+*/
+    vec3 incident = (vec3) (intersection.position - light.position);
+    vec3 normal   = (vec3) (triangles[intersection.triangleIndex].normal);
+
+    vec3 reflected = 2.0f * dot(normal, incident) * normal - incident;
+    vec3 viewDir = (vec3) (intersection.position - camera.position);
+    reflected = normalize(reflected);
+    viewDir   = normalize(viewDir);
+
+    if (DirectLight(intersection) == vec3(0,0,0)) {
+        return vec3(0,0,0);
+    }
+    return light.color * (float) pow(dot(viewDir, reflected), PHONG_N);
 }
