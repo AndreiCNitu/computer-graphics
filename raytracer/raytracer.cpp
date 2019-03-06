@@ -146,7 +146,6 @@ bool Update() {
 	    } else if (e.type == SDL_KEYDOWN) {
 	        int key_code = e.key.keysym.sym;
 	        switch(key_code) {
-
                 case SDLK_w:
                     // Translate camera forward
                     camera.position += camera.moveSpeed * camera.rotation * vec4(0, 0, 0.1f, 0);
@@ -171,7 +170,6 @@ bool Update() {
                     // Translate camera down
                     camera.position += camera.moveSpeed * camera.rotation * vec4(0, 0.1f, 0, 0);
                     break;
-
 	            case SDLK_LEFT:
                     // Rotate camera left
                     RotateY(camera.rotation, -0.1f);
@@ -188,7 +186,6 @@ bool Update() {
                     // Rotate camera down
                     RotateX(camera.rotation, -0.1f);
 		            break;
-
                 case SDLK_i:
                     // Translate light forward
                     light.position += light.moveSpeed * vec4(0, 0, 1.0f, 0);
@@ -213,15 +210,13 @@ bool Update() {
                     // Translate light down
                     light.position += light.moveSpeed * vec4(0, 1.0f, 0, 0);
                     break;
-
-                // Reset camera and light
                 case SDLK_SPACE:
+                    // Reset camera and light
                     InitialiseParams();
 		            break;
-                // Move camera quit
 	            case SDLK_ESCAPE:
+                    // Quit
 		            return false;
-                    break;
             }
 	    }
     }

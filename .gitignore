@@ -1,4 +1,5 @@
 /starfield/skeleton
 /raytracer/raytracer
+/rasteriser/rasteriser
 *.o
 *.bmp

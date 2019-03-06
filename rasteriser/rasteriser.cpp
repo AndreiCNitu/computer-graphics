@@ -230,8 +230,8 @@ void PixelShader( screen* screen, const Pixel& pixel, vec3 color ) {
     int x = pixel.x;
     int y = pixel.y;
     if( pixel.zinv > depthBuffer[y][x] ) {
-       depthBuffer[y][x] = pixel.zinv;
-       PutPixelSDL( screen, x, y, color );
+        depthBuffer[y][x] = pixel.zinv;
+        PutPixelSDL( screen, x, y, color );
     }
 }
 
