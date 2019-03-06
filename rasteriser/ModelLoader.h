@@ -2,7 +2,6 @@
 #define MODEL_LOADER
 
 #define LINES 128 * 1024
-#define SCALE_DOWN 1.4f
 
 #include <iostream>
 #include <fstream>
@@ -67,7 +66,7 @@ bool LoadModel( vector<Triangle>& triangles, const char* filename ) {
             vnInd++;
         } else if (header == "f") {
             // TODO: set color
-            vec3 color( 0.25f, 0.60f, 0.25f );
+            vec3 color( 0.20f, 0.20f, 0.90f );
             vec4 v[3], uv[3], normals[3];
             int vertexInd[3], textureInd[3], normalInd[3];
             input >> header >> s[0] >> s[1] >> s[2];
@@ -135,66 +134,55 @@ void RotateTriangles( vector<Triangle>& triangles) {
 }
 
 void ScaleTriangles( vector<Triangle>& triangles ) {
-    float MAX  = 0.0f;
-    float yMax, zMin;
-    yMax = numeric_limits<float>::min();
-    zMin = numeric_limits<float>::max();
+    float MAX  = 0.0f; // max coords
+    float yMin;        // min y coord
+    yMin = numeric_limits<float>::max();
 
     for( size_t i = 0; i < triangles.size(); ++i ) {
-        if        (abs(triangles[i].v0.x) > MAX) {
-            MAX =  abs(triangles[i].v0.x);
-        } else if (abs(triangles[i].v1.x) > MAX) {
-            MAX =  abs(triangles[i].v1.x);
-        } else if (abs(triangles[i].v2.x) > MAX) {
-            MAX =  abs(triangles[i].v2.x);
-        } else if (abs(triangles[i].v0.y) > MAX) {
-            MAX =  abs(triangles[i].v0.y);
-        } else if (abs(triangles[i].v1.y) > MAX) {
-            MAX =  abs(triangles[i].v1.y);
-        } else if (abs(triangles[i].v2.y) > MAX) {
-            MAX =  abs(triangles[i].v2.y);
-        } else if (abs(triangles[i].v0.z) > MAX) {
-            MAX =  abs(triangles[i].v0.z);
-        } else if (abs(triangles[i].v1.z) > MAX) {
-            MAX =  abs(triangles[i].v1.z);
-        } else if (abs(triangles[i].v2.z) > MAX) {
-            MAX =  abs(triangles[i].v2.z);
+        if        (triangles[i].v0.x > MAX) {
+            MAX =  triangles[i].v0.x;
+        } else if (triangles[i].v1.x > MAX) {
+            MAX =  triangles[i].v1.x;
+        } else if (triangles[i].v2.x > MAX) {
+            MAX =  triangles[i].v2.x;
+        } else if (triangles[i].v0.y > MAX) {
+            MAX =  triangles[i].v0.y;
+        } else if (triangles[i].v1.y > MAX) {
+            MAX =  triangles[i].v1.y;
+        } else if (triangles[i].v2.y > MAX) {
+            MAX =  triangles[i].v2.y;
+        } else if (triangles[i].v0.z > MAX) {
+            MAX =  triangles[i].v0.z;
+        } else if (triangles[i].v1.z > MAX) {
+            MAX =  triangles[i].v1.z;
+        } else if (triangles[i].v2.z > MAX) {
+            MAX =  triangles[i].v2.z;
         }
 
-        if        (triangles[i].v0.y > yMax) {
-            yMax =  triangles[i].v0.y;
-        } else if (triangles[i].v1.y > yMax) {
-            yMax =  triangles[i].v1.y;
-        } else if (triangles[i].v2.y > yMax) {
-            yMax =  triangles[i].v2.y;
-        }
-
-        if        (triangles[i].v0.z < zMin) {
-            zMin =  triangles[i].v0.z;
-        } else if (triangles[i].v1.z < zMin) {
-            zMin =  triangles[i].v1.z;
-        } else if (triangles[i].v2.z < zMin) {
-            zMin =  triangles[i].v2.z;
+        if        (triangles[i].v0.y < yMin) {
+            yMin =  triangles[i].v0.y;
+        } else if (triangles[i].v1.y < yMin) {
+            yMin =  triangles[i].v1.y;
+        } else if (triangles[i].v2.y < yMin) {
+            yMin =  triangles[i].v2.y;
         }
     }
-    yMax *= 1 / (SCALE_DOWN * MAX);
-    zMin *= 1 / (SCALE_DOWN * MAX);
+    yMin *= 1 / (2.0f * MAX);
 
     for( size_t i = 0; i < triangles.size(); ++i ) {
         // Scale object to fit inside box
-    	triangles[i].v0 *= 1 / (SCALE_DOWN * MAX);
-    	triangles[i].v1 *= 1 / (SCALE_DOWN * MAX);
-    	triangles[i].v2 *= 1 / (SCALE_DOWN * MAX);
+    	triangles[i].v0 *= 1 / (2.0f * MAX);
+    	triangles[i].v1 *= 1 / (2.0f * MAX);
+    	triangles[i].v2 *= 1 / (2.0f * MAX);
 
-        // Move object halfway in front of camera
-        triangles[i].v0.z += (-0.5f - zMin);
-    	triangles[i].v1.z += (-0.5f - zMin);
-    	triangles[i].v2.z += (-0.5f - zMin);
+        // Move object towards camera
+        triangles[i].v0.z -= 0.6f;
+    	triangles[i].v1.z -= 0.6f;
+    	triangles[i].v2.z -= 0.6f;
 
-        // Put object on the floor
-        triangles[i].v0.y += (1.0f - yMax);
-    	triangles[i].v1.y += (1.0f - yMax);
-    	triangles[i].v2.y += (1.0f - yMax);
+        triangles[i].v0.y += (0.5f - yMin);
+    	triangles[i].v1.y += (0.5f - yMin);
+    	triangles[i].v2.y += (0.5f - yMin);
 
     	triangles[i].v0.w = 1.0f;
     	triangles[i].v1.w = 1.0f;

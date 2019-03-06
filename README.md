@@ -3,8 +3,9 @@
 ### Usage
 ```
 Usage: ./raytracer [OPTIONS]
-  --cornell-box        load test model
-  --load <file.obj>    load custom model
+  --cornell-box           load test model
+  --load     <file.obj>   load custom model
+  --load-box <file.obj>   load custom model, inside the Cornell Box
 ```
 
 ### Controls

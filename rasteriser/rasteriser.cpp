@@ -3,6 +3,7 @@
 #include <SDL.h>
 #include "SDLauxiliary.h"
 #include "TestModelH.h"
+#include "ModelLoader.h"
 #include <stdint.h>
 
 using namespace std;
@@ -58,14 +59,51 @@ void DrawPolygon( screen* screen, vec3 color, const vector<vec4>& vertices );
 
 
 int main( int argc, char* argv[] ) {
+    if (argc > 4) {
+        cout << "Too many arguments." << endl;
+        cout << "Usage: ./raytracer [N renders] --cornell-box or ./raytracer [N renders] --load[-box] <model.obj>" << endl;
+        exit(1);
+    } else if (argc == 3 && ( strcmp("--cornell-box", argv[2]) == 0 ) ||
+               argc == 1) {
+        LoadTestModel( triangles );
+        cout << "Cornell box test model loaded successfully." << endl;
+    } else if (argc == 4 && strcmp("--load",          argv[2]) == 0 ) {
+        if (LoadModel( triangles, argv[3] )) {
+            cout << argv[3] << " model loaded successfully." << endl;
+        } else {
+            cout << "Unable to load " << argv[3] << endl;
+            exit(1);
+        }
+    } else if (argc == 4 && strcmp("--load-box",      argv[2]) == 0 ) {
+        LoadCornellBox( triangles );
+        cout << "Cornell box loaded successfully." << endl;
+        vector<Triangle> objTriangles;
+        if (LoadModel( objTriangles, argv[3] )) {
+            triangles.insert(triangles.end(), objTriangles.begin(), objTriangles.end());
+            cout << argv[3] << " model loaded successfully." << endl;
+        } else {
+            cout << "Unable to load " << argv[3] << endl;
+            exit(1);
+        }
+    } else {
+        cout << "Unknown command." << endl;
+        cout << "Usage: ./raytracer --cornell-box or ./raytracer --load <model.obj>" << endl;
+        exit(1);
+    }
+
     screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
     InitialiseParams();
-
-    LoadTestModel( triangles );
-
-    while ( Update()) {
+    
+    if ( strcmp("--realtime", argv[1]) == 0 ) {
+        while ( Update() ) {
+            Draw(screen);
+            SDL_Renderframe(screen);
+        }
+    } else if ( strcmp("--once", argv[1]) == 0 ) {
+        Update();
         Draw(screen);
         SDL_Renderframe(screen);
+        Update();
     }
 
     SDL_SaveImage( screen, "screenshot.bmp" );

@@ -29,7 +29,7 @@ run-cornell :
 run-cube :
 	make clean
 	make build
-	./raytracer --load cube.obj
+	./raytracer --load-box cube.obj
 
 # Clean rule
 .PHONY: clean

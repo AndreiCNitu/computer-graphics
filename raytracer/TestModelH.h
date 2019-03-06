@@ -6,34 +6,39 @@
 #include <glm/glm.hpp>
 #include <vector>
 
+using glm::vec2;
+using glm::vec3;
+using glm::vec4;
+
 // Used to describe a triangular surface:
 class Triangle {
 public:
-    glm::vec4 v0;
-    glm::vec4 v1;
-    glm::vec4 v2;
-    glm::vec4 normal;
-    glm::vec3 color;
+    vec4 v0;
+    vec4 v1;
+    vec4 v2;
+    vec2 uv0;
+    vec2 uv1;
+    vec2 uv2;
+    vec4 normal;
+    vec3 color;
 
-    Triangle( glm::vec4 v0, glm::vec4 v1, glm::vec4 v2, glm::vec4 normal, glm::vec3 color )
-        : v0(v0), v1(v1), v2(v2), normal(normal), color(color) {
-        glm::vec3 normal3 = normal;
-        normal3 = glm::normalize( normal3 );
-        normal.x = normal3.x;
-        normal.y = normal3.y;
-        normal.z = normal3.z;
-        normal.w = 1.0f;
+    // Use texture mapping
+    Triangle( vec4 v0, vec4 v1, vec4 v2, vec2 uv0, vec2 uv1, vec2 uv2 )
+        : v0(v0), v1(v1), v2(v2), uv0(uv0), uv1(uv1), uv2(uv2) {
+        color = vec3(-1,-1,-1);
+        ComputeNormal();
     }
 
-	Triangle( glm::vec4 v0, glm::vec4 v1, glm::vec4 v2, glm::vec3 color )
+    // Use uniform color
+	Triangle( vec4 v0, vec4 v1, vec4 v2, vec3 color )
         : v0(v0), v1(v1), v2(v2), color(color) {
         ComputeNormal();
 	}
 
 	void ComputeNormal() {
-        glm::vec3 e1 = glm::vec3(v1.x-v0.x,v1.y-v0.y,v1.z-v0.z);
-        glm::vec3 e2 = glm::vec3(v2.x-v0.x,v2.y-v0.y,v2.z-v0.z);
-        glm::vec3 normal3 = glm::normalize( glm::cross( e2, e1 ) );
+        vec3 e1 = glm::vec3(v1.x-v0.x,v1.y-v0.y,v1.z-v0.z);
+        vec3 e2 = glm::vec3(v2.x-v0.x,v2.y-v0.y,v2.z-v0.z);
+        vec3 normal3 = glm::normalize( glm::cross( e2, e1 ) );
         normal.x = normal3.x;
         normal.y = normal3.y;
         normal.z = normal3.z;
@@ -46,8 +51,6 @@ public:
 // -1 <= y <= +1
 // -1 <= z <= +1
 void LoadTestModel( std::vector<Triangle>& triangles ) {
-    using glm::vec3;
-    using glm::vec4;
 
     // Defines colors:
     vec3 red(    0.75f, 0.15f, 0.15f );
@@ -113,7 +116,7 @@ void LoadTestModel( std::vector<Triangle>& triangles ) {
     triangles.push_back( Triangle(E,B,A,red) );
     triangles.push_back( Triangle(E,F,B,red) );
 
-    // Front
+    // Right?
     triangles.push_back( Triangle(F,D,B,red) );
     triangles.push_back( Triangle(F,H,D,red) );
 
