@@ -35,13 +35,13 @@ struct Light {
     float moveSpeed;
 };
 
-#define SCREEN_WIDTH  256
-#define SCREEN_HEIGHT 160
+#define SCREEN_WIDTH  2560
+#define SCREEN_HEIGHT 1600
 #define FULLSCREEN_MODE true
 #define SHADOW_BIAS 0.00064f
-#define PHONG_N 200
-#define KD 0.80f
-#define KS 0.060f
+#define PHONG_N 10
+#define KD 0.60f
+#define KS 0.008f
 /*  6   2   7
 **    \ | /
 ** 3 -- 1 -- 4
@@ -138,7 +138,7 @@ void Draw(screen* screen) {
     float row_offset[9] = {0.0f, -0.5f,  0.0f, 0.0f, 0.5f, -0.5f, -0.5f,  0.5f, 0.5f};
 
     // Loop throught all pixels
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(dynamic)
     for (int row = 0; row < SCREEN_HEIGHT; row++) {
         for (int col = 0; col < SCREEN_WIDTH; col++) {
             vec3 pixelColor = vec3(0,0,0);
@@ -148,7 +148,7 @@ void Draw(screen* screen) {
                                                          camera.focalLength, 0.0);
                 Intersection primaryIntersect;
                 if (ClosestIntersection(camera.position, primaryRay, triangles, primaryIntersect)) {
-                    if (triangles[primaryIntersect.triangleIndex].color != vec3(0.89, 0.19, 0.07)) {
+                    if (triangles[primaryIntersect.triangleIndex].color != vec3(0.15f, 0.15f, 0.75f)) {
                         pixelColor += triangles[primaryIntersect.triangleIndex].color
                                     * (DirectLight(primaryIntersect) + light.indirect);
                     } else {
@@ -268,9 +268,9 @@ void InitialiseParams() {
                            vec4(0.0, 0.0, 0.0, 1.0));
     camera.moveSpeed     = 1.0f;
     camera.rotationSpeed = 0.1f;
-    light.position = vec4( 0.0f, -0.5f, -0.7f, 1.0f );
+    light.position = vec4( 0.0f, -0.5f, -1.08f, 1.0f );
     light.color = 14.0f * vec3( 1.0, 1.0, 1.0 );
-    light.indirect = 0.2f*vec3( 1, 1, 1 );
+    light.indirect = 0.3f*vec3( 1, 1, 1 );
     light.moveSpeed = 0.1f;
 }
 

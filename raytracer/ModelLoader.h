@@ -2,7 +2,8 @@
 #define MODEL_LOADER
 
 #define LINES 128 * 1024
-#define SCALE_DOWN 1.4f
+#define SCALE_DOWN 2.0f
+#define COLOR      vec3 ( 0.15f, 0.15f, 0.75f )
 
 #include <iostream>
 #include <fstream>
@@ -66,8 +67,6 @@ bool LoadModel( vector<Triangle>& triangles, const char* filename ) {
             normals[vnInd].z = strtof((s[2]).c_str(), 0);
             vnInd++;
         } else if (header == "f") {
-            // TODO: set color
-            vec3 color = vec3(0.89, 0.19, 0.07);
             vec4 v[3], uv[3], normals[3];
             int vertexInd[3], textureInd[3], normalInd[3];
             input >> header >> s[0] >> s[1] >> s[2];
@@ -106,7 +105,7 @@ bool LoadModel( vector<Triangle>& triangles, const char* filename ) {
                 uv[pos] = vertex;
             }
 
-            Triangle triangle = Triangle( v[2], v[1], v[0], color );
+            Triangle triangle = Triangle( v[2], v[1], v[0], COLOR );
             // Triangle triangle = Triangle( v[2], v[1], v[0], uv[0], uv[1], uv[2] );
             triangles.push_back(triangle);
         } else {
