@@ -32,12 +32,12 @@ build : $(OBJ) Makefile
 run-cornell :
 	make clean
 	make build
-	./raytracer --realtime --cornell-box
+	./$(EXEC) --realtime --cornell-box
 
 run-cube:
 	make clean
 	make build
-	./raytracer --load-box cube.obj
+	./$(EXEC) --load-box cube.obj
 
 # Clean rule
 .PHONY: clean

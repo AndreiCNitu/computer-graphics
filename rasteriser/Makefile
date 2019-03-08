@@ -2,10 +2,18 @@ FILE=rasteriser
 GLMDIR=../glm/
 EXEC=$(FILE)
 
-# default build settings
-CC_OPTS=-c -pipe -Wall -Wno-switch -O3 -qopenmp
+OS := $(shell uname)
+
+# Build options, OS independent
+ifeq ($(OS), Darwin)
+CC_OPTS=--std=c++11 -c -pipe -Wall -Wno-switch -Ofast -qopenmp
 LN_OPTS=-qopenmp
 CC=icpc
+else
+CC_OPTS=--std=c++11 -c -pipe -Wall -Wno-switch -Ofast -fopenmp
+LN_OPTS=-fopenmp
+CC=g++
+endif
 
 # SDL options
 SDL_CFLAGS := $(shell sdl2-config --cflags)
@@ -21,10 +29,15 @@ $(FILE).o : $(FILE).cpp SDLauxiliary.h TestModelH.h
 build : $(OBJ) Makefile
 	$(CC) $(LN_OPTS) -o $(EXEC) $(OBJ) $(SDL_LDFLAGS)
 
-run:
+run-cornell :
 	make clean
 	make build
-	./rasteriser
+	./$(EXEC) --realtime --cornell-box
+
+run-cube:
+	make clean
+	make build
+	./$(EXEC) --load-box cube.obj
 
 # Clean rule
 .PHONY: clean

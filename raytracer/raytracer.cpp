@@ -52,8 +52,8 @@ struct Light {
 
 
 vector<Triangle> triangles;
-struct Camera camera;
-struct Light  light;
+Camera camera;
+Light light;
 
 bool Update();
 void Draw(screen* screen);
@@ -123,6 +123,7 @@ int main( int argc, char* argv[] ) {
         Update();
     } else {
         cout << "Unknown command." << endl;
+        exit(1);
     }
 
     SDL_SaveImage( screen, "screenshot.bmp" );
