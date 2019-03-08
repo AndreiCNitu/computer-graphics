@@ -3,9 +3,13 @@
 ### Usage
 ```
 Usage: ./raytracer [OPTIONS]
+1.
+  --once                  render 1 frame
+  --realtime              render continuously
+2.
   --cornell-box           load test model
   --load     <file.obj>   load custom model
-  --load-box <file.obj>   load custom model, inside the Cornell Box
+  --load-box <file.obj>   load custom model, inside Cornell Box
 ```
 
 ### Controls
@@ -20,3 +24,26 @@ Usage: ./raytracer [OPTIONS]
 ```
 
 # Rasteriser
+
+### Usage
+```
+Usage: ./rasteriser [OPTIONS]
+1.
+  --once                  render 1 frame
+  --realtime              render continuously
+2.
+  --cornell-box           load test model
+  --load     <file.obj>   load custom model
+  --load-box <file.obj>   load custom model, inside Cornell Box
+```
+
+### Controls
+```
+ Move view:             Move light:             Rotate camera:
+
+     W                      I                       MOUSE  
+  A  S  D                J  K  L                   
+
+  Q --> up               U --> up
+  E --> down             P --> down
+```
