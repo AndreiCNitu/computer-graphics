@@ -7,12 +7,16 @@
 
 #include <iostream>
 #include <fstream>
+#include <cstdlib>
+#include <algorithm>
+#include <errno.h>
 #include <string>
 #include <sstream>
 #include <glm/glm.hpp>
 #include <SDL.h>
 #include <limits.h>
 #include "TestModelH.h"
+
 
 using namespace std;
 using glm::vec2;

@@ -1,0 +1,29 @@
+raytracer.cpp:141:0: warning: ignoring #pragma omp parallel [-Wunknown-pragmas]
+     #pragma omp parallel for schedule(dynamic)
+ ^
+In file included from raytracer.cpp:6:0:
+ModelLoader.h: In function ‘bool LoadModel(std::vector<Triangle>&, const char*)’:
+ModelLoader.h:35:13: warning: deprecated conversion from string constant to ‘char*’ [-Wwrite-strings]
+     folder  = "../Models/";
+             ^
+ModelLoader.h:107:22: warning: variable ‘uvCoord’ set but not used [-Wunused-but-set-variable]
+                 vec2 uvCoord = vec2( textures[textureInd[pos] - 1].x,
+                      ^
+ModelLoader.h:74:31: warning: unused variable ‘normals’ [-Wunused-variable]
+             vec4 v[3], uv[3], normals[3];
+                               ^
+ModelLoader.h:75:46: warning: variable ‘normalInd’ set but not used [-Wunused-but-set-variable]
+             int vertexInd[3], textureInd[3], normalInd[3];
+                                              ^
+raytracer.cpp: In function ‘int main(int, char**)’:
+raytracer.cpp:83:26: warning: suggest parentheses around ‘&&’ within ‘||’ [-Wparentheses]
+     } else if (argc == 3 && ( strcmp("--cornell-box", argv[2]) == 0 ) ||
+                          ^
+raytracer.cpp: In function ‘bool ClosestIntersection(glm::vec4, glm::vec4, const std::vector<Triangle>&, Intersection&)’:
+raytracer.cpp:327:40: warning: comparison between signed and unsigned integer expressions [-Wsign-compare]
+     for( int i = 0; i < triangles.size(); i++ ) {
+                                        ^
+raytracer.cpp: In function ‘glm::vec3 DirectLight(const Intersection&)’:
+raytracer.cpp:374:9: warning: ‘shadowIntersect.Intersection::distance’ may be used uninitialized in this function [-Wmaybe-uninitialized]
+         if (radius > shadowIntersect.distance) {
+         ^

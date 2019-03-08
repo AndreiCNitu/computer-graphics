@@ -35,8 +35,8 @@ struct Light {
     float moveSpeed;
 };
 
-#define SCREEN_WIDTH  2560
-#define SCREEN_HEIGHT 1600
+#define SCREEN_WIDTH  1920
+#define SCREEN_HEIGHT 1080
 #define FULLSCREEN_MODE true
 #define SHADOW_BIAS 0.00064f
 #define PHONG_N 10
@@ -276,6 +276,7 @@ void InitialiseParams() {
 
 bool TriangleIntersection( vec4 start, vec4 dir, Triangle triangle, Intersection& intersection ) {
 
+    vec3 dir3 = (vec3) dir;
     vec4 v0 = triangle.v0;
     vec4 v1 = triangle.v1;
     vec4 v2 = triangle.v2;
@@ -286,18 +287,18 @@ bool TriangleIntersection( vec4 start, vec4 dir, Triangle triangle, Intersection
     vec3 b  = vec3(start.x - v0.x, start.y - v0.y, start.z - v0.z); // s - v0
 
     // v0 + ue1 + ve2 = s + td
-    mat3 A( -dir, e1, e2 );
+    mat3 A( -dir3, e1, e2 );
     const float detA  = glm::determinant( A );
 
     float t = glm::determinant( mat3(   b, e1, e2 ) ) / detA;
     if (t < 0) {
         return false;
     }
-    float u = glm::determinant( mat3( -dir, b, e2 ) ) / detA;
+    float u = glm::determinant( mat3( -dir3, b, e2 ) ) / detA;
     if (u < 0) {
         return false;
     }
-    float v = glm::determinant( mat3( -dir, e1, b ) ) / detA;
+    float v = glm::determinant( mat3( -dir3, e1, b ) ) / detA;
     if (v < 0) {
         return false;
     }
@@ -360,7 +361,7 @@ vec3 DirectLight( const Intersection& intersection ) {
 
     vec4  normalH = triangles[intersection.triangleIndex].normal;
     vec3  normal = (vec3) normalH;
-    vec3  lightVector  = light.position - intersection.position;
+    vec3  lightVector  = (vec3) (light.position - intersection.position);
     float radius = length( lightVector );
     lightVector = normalize( lightVector );
     vec4 lightVectorH = vec4(lightVector.x, lightVector.y, lightVector.z, 1.0f);
