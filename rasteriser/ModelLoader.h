@@ -1,9 +1,8 @@
 #ifndef MODEL_LOADER
 #define MODEL_LOADER
 
-#define LINES 128 * 1024
-#define SCALE_DOWN 0.8f
-#define COLOR      vec3 ( 0.15f, 0.15f, 0.75f )
+#define SCALE_DOWN 1.1f
+#define COLOR      vec3(0.26, 0.26, 0.39)
 
 #include <iostream>
 #include <fstream>
@@ -46,9 +45,11 @@ bool LoadModel( vector<Triangle>& triangles, const char* filename ) {
     string line;
     string header, s[3];
     int n = 0, vInd = 0, vtInd = 0, vnInd = 0;
-    vec3 vertices[LINES];
-    vec2 textures[LINES];
-    vec3  normals[LINES];
+    vector<vec3> vertices;
+    vector<vec2> textures;
+    vector<vec3>  normals;
+
+    cout << "Loading " << filename << " ... " << endl;
     while( !objfile.eof() ) {
         getline (objfile, line);
         istringstream input( line );
@@ -56,19 +57,20 @@ bool LoadModel( vector<Triangle>& triangles, const char* filename ) {
 
         if        (header == "v") {
             input >> header >> s[0] >> s[1] >> s[2];
-            vertices[vInd].x = strtof((s[0]).c_str(), 0);
-            vertices[vInd].y = strtof((s[1]).c_str(), 0);
-            vertices[vInd].z = strtof((s[2]).c_str(), 0);
+            vertices.push_back(vec3(strtof((s[0]).c_str(), 0),
+                                    strtof((s[1]).c_str(), 0),
+                                    strtof((s[2]).c_str(), 0)));
             vInd++;
         } else if (header == "vt") {
             input >> header >> s[0] >> s[1] >> s[2];
-            textures[vtInd].x = strtof((s[0]).c_str(), 0);
-            textures[vtInd].y = strtof((s[1]).c_str(), 0);
+            textures.push_back(vec2(strtof((s[0]).c_str(), 0),
+                                    strtof((s[1]).c_str(), 0)));
+            vtInd++;
         } else if (header == "vn") {
             input >> header >> s[0] >> s[1] >> s[2];
-            normals[vnInd].x = strtof((s[0]).c_str(), 0);
-            normals[vnInd].y = strtof((s[1]).c_str(), 0);
-            normals[vnInd].z = strtof((s[2]).c_str(), 0);
+            normals.push_back(vec3(strtof((s[0]).c_str(), 0),
+                                   strtof((s[1]).c_str(), 0),
+                                   strtof((s[2]).c_str(), 0)));
             vnInd++;
         } else if (header == "f") {
             vec4 v[3], uv[3], normals[3];

@@ -47,3 +47,5 @@ Usage: ./rasteriser [OPTIONS]
   Q --> up               U --> up
   E --> down             P --> down
 ```
+
+Note: The `lucy.obj` model is not commited because its size is too big (2.45 GB)

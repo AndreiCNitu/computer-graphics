@@ -3,3 +3,4 @@
 /rasteriser/rasteriser
 *.o
 *.bmp
+/Models/lucy.obj
