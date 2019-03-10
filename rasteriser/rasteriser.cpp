@@ -83,7 +83,7 @@ void DrawPolygon( screen* screen, const vector<Vertex>& vertices,
 int main( int argc, char* argv[] ) {
     if (argc > 4) {
         cout << "Too many arguments." << endl;
-        cout << "Usage: ./raytracer [N renders] --cornell-box or ./raytracer [N renders] --load[-box] <model.obj>" << endl;
+        cout << "Usage: ./rasteriser [N renders] --cornell-box or ./rasteriser [N renders] --load[-box] <model.obj>" << endl;
         exit(1);
     } else if (argc == 3 && ( strcmp("--cornell-box", argv[2]) == 0 ) ||
                argc == 1) {
@@ -109,7 +109,7 @@ int main( int argc, char* argv[] ) {
         }
     } else {
         cout << "Unknown command." << endl;
-        cout << "Usage: ./raytracer --cornell-box or ./raytracer --load <model.obj>" << endl;
+        cout << "Usage: ./rasteriser --cornell-box or ./rasteriser --load <model.obj>" << endl;
         exit(1);
     }
 

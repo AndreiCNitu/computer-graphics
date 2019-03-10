@@ -35,8 +35,8 @@ struct Light {
     float moveSpeed;
 };
 
-#define SCREEN_WIDTH  640
-#define SCREEN_HEIGHT 400
+#define SCREEN_WIDTH  2560
+#define SCREEN_HEIGHT 1600
 #define FULLSCREEN_MODE true
 #define SHADOW_BIAS 0.00064f
 #define PHONG_N 10
