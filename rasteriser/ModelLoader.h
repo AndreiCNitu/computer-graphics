@@ -95,10 +95,8 @@ bool LoadModel( vector<Triangle>& triangles, const char* filename ) {
                 fields.push_back( string( current, next ) );
 
                 vertexInd[pos]  = (fields[0] == "")   ? -1 : stoi((fields[0]).c_str());
-                textureInd[pos] = (fields[1] == "" ||
-                                   fields.size() < 2) ? -1 : stoi((fields[1]).c_str());
-                normalInd[pos]  = (fields[2] == ""||
-                                   fields.size() < 3) ? -1 : stoi((fields[2]).c_str());
+                textureInd[pos] = (fields.size() < 2 || fields[1] == "") ? -1 : stoi((fields[1]).c_str());
+                normalInd[pos]  = (fields.size() < 3 || fields[2] == "") ? -1 : stoi((fields[2]).c_str());
 
                 vec4 vertex = vec4( vertices[vertexInd[pos] - 1].x,
                                     vertices[vertexInd[pos] - 1].y,

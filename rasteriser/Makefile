@@ -6,11 +6,11 @@ OS := $(shell uname)
 
 # Build options, OS independent
 ifeq ($(OS), Darwin)
-CC_OPTS=--std=c++11 -c -pipe -Wall -Wno-switch -Ofast -qopenmp
+CC_OPTS=--std=c++11 -c -pipe -Wall -Wno-switch -O3 -qopenmp
 LN_OPTS=-qopenmp
 CC=icpc
 else
-CC_OPTS=--std=c++11 -c -pipe -Wall -Wno-switch -Ofast -fopenmp
+CC_OPTS=--std=c++11 -c -pipe -Wall -Wno-switch -O3 -fopenmp
 LN_OPTS=-fopenmp
 CC=g++
 endif
@@ -34,10 +34,10 @@ run-cornell :
 	make build
 	./$(EXEC) --realtime --cornell-box
 
-run-cube:
+run-urs:
 	make clean
 	make build
-	./$(EXEC) --load-box cube.obj
+	./$(EXEC) --realtime --load-box ursache.obj
 
 # Clean rule
 .PHONY: clean

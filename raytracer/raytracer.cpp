@@ -269,6 +269,7 @@ void InitialiseParams() {
                            vec4(0.0, 0.0, 0.0, 1.0));
     camera.moveSpeed     = 1.0f;
     camera.rotationSpeed = 0.1f;
+
     light.position = vec4( 0.0f, -0.5f, -1.08f, 1.0f );
     light.color = 14.0f * vec3( 1.0, 1.0, 1.0 );
     light.indirect = 0.3f*vec3( 1, 1, 1 );
@@ -339,22 +340,18 @@ bool ClosestIntersection(
 }
 
 void RotateX( mat4& rotation, float rad ) {
-    vec4 c1(1,        0,  0,        0);
-    vec4 c2(0,  cos(rad), sin(rad),      0);
-    vec4 c3(0, -sin(rad), cos(rad), 0);
-    vec4 c4(0,        0,  0,        1);
-
-    mat4 R = mat4(c1, c2, c3, c4);
+    mat4 R = mat4(vec4(1,        0,  0,        0),
+                  vec4(0,  cos(rad), sin(rad), 0),
+                  vec4(0, -sin(rad), cos(rad), 0),
+                  vec4 (0,        0,  0,       1));
     rotation = R * rotation;
 }
 
 void RotateY( mat4& rotation, float rad ) {
-    vec4 c1(cos(rad), 0, -sin(rad), 0);
-    vec4 c2(0,        1,  0,        0);
-    vec4 c3(sin(rad), 0,  cos(rad), 0);
-    vec4 c4(0,        0,  0,        1);
-
-    mat4 R = mat4(c1, c2, c3, c4);
+    mat4 R = mat4(vec4(cos(rad), 0, -sin(rad), 0),
+                  vec4(0,        1,  0,        0),
+                  vec4(sin(rad), 0,  cos(rad), 0),
+                  vec4(0,        0,  0,        1));
     rotation = R * rotation;
 }
 

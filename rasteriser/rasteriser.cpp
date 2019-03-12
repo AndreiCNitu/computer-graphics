@@ -4,6 +4,7 @@
 #include "SDLauxiliary.h"
 #include "TestModelH.h"
 #include "ModelLoader.h"
+#include "Movement.h"
 #include <stdint.h>
 #include <omp.h>
 
@@ -47,12 +48,8 @@ Camera camera;
 Light light;
 
 /* https://www.h-schmidt.net/FloatConverter/IEEE754.html */
-#define SCREEN_WIDTH  1440
-#define SCREEN_HEIGHT 900
-
-#define CAMERA_MOVEMENT_SPEED 0.015625f
-#define CAMERA_ROTATION_SPEED 0.015625f
-#define LIGHT_MOVEMENT_SPEED 0.0078125f
+#define SCREEN_WIDTH  2560
+#define SCREEN_HEIGHT 1600
 #define FULLSCREEN_MODE true
 
 // Store 1/z for each pixel
@@ -151,11 +148,11 @@ void Draw(screen* screen) {
     memset(screen->buffer, 0, screen->height * screen->width * sizeof(uint32_t));
 
     // Clear Z-buffer
-    for( int y=0; y<SCREEN_HEIGHT; ++y )
-           for( int x=0; x<SCREEN_WIDTH; ++x )
+    for( int y = 0; y < SCREEN_HEIGHT; ++y )
+           for( int x = 0; x < SCREEN_WIDTH; ++x )
             depthBuffer[y][x] = 0.0f;
 
-    #pragma omp parallel for schedule(dynamic)
+    #pragma omp parallel for
     for(int i = 0; i < triangles.size(); i++) {
         vec3 triangleColor  = triangles[i].color;
         vec4 triangleNormal = triangles[i].normal;
@@ -175,56 +172,17 @@ void Update() {
     int lastRecordedY = 0;
     SDL_GetRelativeMouseState(&lastRecordedX, &lastRecordedY);
 
-    /* Move camera forward */
-    if (keyState[SDL_SCANCODE_W]) {camera.translation += vec4(0, 0, -CAMERA_MOVEMENT_SPEED, 0);}
+    float CS = camera.moveSpeed;
+    float LS = light.moveSpeed;
+    float RS = camera.rotationSpeed;
 
-    /* Move camera backwards */
-    if (keyState[SDL_SCANCODE_S]) {camera.translation += vec4(0, 0, CAMERA_MOVEMENT_SPEED, 0);}
-
-    /* Move camera left */
-    if (keyState[SDL_SCANCODE_A]) {camera.translation += vec4(CAMERA_MOVEMENT_SPEED, 0, 0, 0);}
-
-    /* Move camera right */
-    if (keyState[SDL_SCANCODE_D]) {camera.translation += vec4(-CAMERA_MOVEMENT_SPEED, 0, 0, 0);}
-
-    /* Move camera up */
-    if (keyState[SDL_SCANCODE_Q]) {camera.translation += vec4(0, CAMERA_MOVEMENT_SPEED, 0, 0);}
-
-    /* Move camera down */
-    if (keyState[SDL_SCANCODE_E]) {camera.translation += vec4(0, -CAMERA_MOVEMENT_SPEED, 0, 0);}
-
-    /* Translate light forward */
-    if (keyState[SDL_SCANCODE_I]) {light.position += vec4(0, 0, LIGHT_MOVEMENT_SPEED, 0);}
-
-    /* Translate light backwards */
-    if (keyState[SDL_SCANCODE_K]) {light.position += vec4(0, 0, -LIGHT_MOVEMENT_SPEED, 0);}
-
-    /* Translate light left */
-    if (keyState[SDL_SCANCODE_J]) {light.position += vec4(-LIGHT_MOVEMENT_SPEED, 0, 0, 0);}
-
-    /* Translate light right */
-    if (keyState[SDL_SCANCODE_L]) {light.position += vec4(LIGHT_MOVEMENT_SPEED, 0, 0, 0);}
-
-    /* Translate light up */
-    if (keyState[SDL_SCANCODE_U]) {light.position += vec4(0, -LIGHT_MOVEMENT_SPEED, 0, 0);}
-
-    /* Translate light down */
-    if (keyState[SDL_SCANCODE_O]) {light.position += vec4(0, LIGHT_MOVEMENT_SPEED, 0, 0);}
-
-    /* Reset camera and light */
-    if (keyState[SDL_SCANCODE_SPACE]) {InitialiseParams();}
-
-    /* Rotate camera left */
-    if (lastRecordedX > 0) {RotateY(camera.rotation, -CAMERA_ROTATION_SPEED);}
-
-    /* Rotate camera right */
-    if (lastRecordedX < 0) {RotateY(camera.rotation,  CAMERA_ROTATION_SPEED);}
-
-    /* Rotate camera up */
-    if (lastRecordedY > 0) {RotateX(camera.rotation,  CAMERA_ROTATION_SPEED);}
-
-    /* Rotate camera down */
-    if (lastRecordedY < 0) {RotateX(camera.rotation, -CAMERA_ROTATION_SPEED);}
+    move(keyState,
+         lastRecordedX,
+         lastRecordedY,
+         CS, LS, RS,
+         camera.translation,
+         camera.rotation,
+         light.position);
 }
 
 void Print_Time() {
@@ -236,13 +194,13 @@ void Print_Time() {
     int step = 100;
 
     if (step == counter) {
-    /* Compute frame time */
-    int t2 = SDL_GetTicks();
-    float dt = float(t2-t);
-    t = t2;
-    std::cout.precision(2);
-    std::cout << std::fixed << "Render time: " << dt/step << "\t ms averaged over " << step << " iterations." << endl;
-    counter = 0;
+        /* Compute frame time */
+        int t2 = SDL_GetTicks();
+        float dt = float(t2-t);
+        t = t2;
+        std::cout.precision(2);
+        std::cout << std::fixed << dt / step << " ms" << '\t' << (step * 1000) / dt << " fps" << endl;
+        counter = 0;
     }
 }
 
@@ -254,33 +212,13 @@ void InitialiseParams() {
                            vec4(0.0, 1.0, 0.0, 0.0),
                            vec4(0.0, 0.0, 1.0, 0.0),
                            vec4(0.0, 0.0, 0.0, 1.0));
-    camera.moveSpeed = CAMERA_MOVEMENT_SPEED;
-    camera.rotationSpeed = CAMERA_ROTATION_SPEED;
+    camera.moveSpeed = 0.015625f;
+    camera.rotationSpeed = 0.015625f;
 
     light.position = vec4(0,-0.5,-0.7,1.0);
     light.power = 14.0f * vec3( 1, 1, 1 );
     light.indirectPowerPerArea = 0.5f * vec3( 1, 1, 1 );
-    light.moveSpeed = LIGHT_MOVEMENT_SPEED;
-}
-
-void RotateX( mat4& rotation, float rad ) {
-    vec4 c1(1,        0,  0,        0);
-    vec4 c2(0,  cos(rad), sin(rad), 0);
-    vec4 c3(0, -sin(rad), cos(rad), 0);
-    vec4 c4(0,        0,  0,        1);
-
-    mat4 R = mat4(c1, c2, c3, c4);
-    rotation = R * rotation;
-}
-
-void RotateY( mat4& rotation, float rad ) {
-    vec4 c1(cos(rad), 0, -sin(rad), 0);
-    vec4 c2(0,        1,  0,        0);
-    vec4 c3(sin(rad), 0,  cos(rad), 0);
-    vec4 c4(0,        0,  0,        1);
-
-    mat4 R = mat4(c1, c2, c3, c4);
-    rotation = R * rotation;
+    light.moveSpeed = 0.0078125f;
 }
 
 mat4 TransformationMatrix() {
