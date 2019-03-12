@@ -215,32 +215,34 @@ void Update() {
     if (keyState[SDL_SCANCODE_SPACE]) {InitialiseParams();}
 
     /* Rotate camera left */
-    if (lastRecordedX < 0) {RotateY(camera.rotation, -CAMERA_ROTATION_SPEED);}
+    if (lastRecordedX > 0) {RotateY(camera.rotation, -CAMERA_ROTATION_SPEED);}
 
     /* Rotate camera right */
-    if (lastRecordedX > 0) {RotateY(camera.rotation,  CAMERA_ROTATION_SPEED);}
+    if (lastRecordedX < 0) {RotateY(camera.rotation,  CAMERA_ROTATION_SPEED);}
 
     /* Rotate camera up */
-    if (lastRecordedY < 0) {RotateX(camera.rotation,  CAMERA_ROTATION_SPEED);}
+    if (lastRecordedY > 0) {RotateX(camera.rotation,  CAMERA_ROTATION_SPEED);}
 
     /* Rotate camera down */
-    if (lastRecordedY > 0) {RotateX(camera.rotation, -CAMERA_ROTATION_SPEED);}
+    if (lastRecordedY < 0) {RotateX(camera.rotation, -CAMERA_ROTATION_SPEED);}
 }
 
 void Print_Time() {
 
     static int t = 0;
-    int counter = 0;
+    static int counter = 0;
     ++counter;
 
-    if (100 == counter) {
+    int step = 100;
+
+    if (step == counter) {
     /* Compute frame time */
     int t2 = SDL_GetTicks();
     float dt = float(t2-t);
     t = t2;
-    cout << "Render time: " << dt << " ms." << endl;
+    std::cout.precision(2);
+    std::cout << std::fixed << "Render time: " << dt/step << "\t ms averaged over " << step << " iterations." << endl;
     counter = 0;
-    t = SDL_GetTicks();
     }
 }
 
