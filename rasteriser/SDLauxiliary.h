@@ -15,11 +15,33 @@ typedef struct{
   uint32_t *buffer;
 } screen;
 
+bool NoQuitMessageSDL();
 screen* InitializeSDL( int width, int height, bool fullscreen = false );
 void PutPixelSDL( screen *s, int x, int y, glm::vec3 color );
 void SDL_Renderframe(screen *s);
 void KillSDL(screen* s);
 void SDL_SaveImage(screen *s, const char* filename);
+
+
+bool NoQuitMessageSDL()
+{
+  SDL_Event e;
+  while( SDL_PollEvent(&e) )
+    {
+      if( e.type == SDL_QUIT )
+	{
+	  return false;
+	}
+      if( e.type == SDL_KEYDOWN )
+	{
+	  if( e.key.keysym.sym == SDLK_ESCAPE)
+	    {
+	      return false;
+	    }
+	}
+    }
+  return true;
+}
 
 void SDL_SaveImage(screen *s, const char* filename) {
   uint32_t rmask, gmask, bmask, amask;

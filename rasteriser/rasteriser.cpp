@@ -5,6 +5,7 @@
 #include "TestModelH.h"
 #include "ModelLoader.h"
 #include <stdint.h>
+#include <omp.h>
 
 using namespace std;
 using glm::ivec2;
@@ -45,14 +46,20 @@ vector<Triangle> triangles;
 Camera camera;
 Light light;
 
-#define SCREEN_WIDTH  2560
-#define SCREEN_HEIGHT 1600
+/* https://www.h-schmidt.net/FloatConverter/IEEE754.html */
+#define SCREEN_WIDTH  1440
+#define SCREEN_HEIGHT 900
+
+#define CAMERA_MOVEMENT_SPEED 0.015625f
+#define CAMERA_ROTATION_SPEED 0.015625f
+#define LIGHT_MOVEMENT_SPEED 0.0078125f
 #define FULLSCREEN_MODE true
 
 // Store 1/z for each pixel
 float depthBuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
 
-bool Update();
+void Update();
+void Print_Time();
 void Draw(screen* screen);
 void InitialiseParams(); // Initialise camera and light
 void RotateX( mat4& rotation, float rad );
@@ -78,7 +85,6 @@ void DrawPolygon( screen* screen, const vector<Vertex>& vertices,
                                         vec3 color,
                                         vec4 normal,
                                         vec3 reflectance );
-
 
 int main( int argc, char* argv[] ) {
     if (argc > 4) {
@@ -117,9 +123,11 @@ int main( int argc, char* argv[] ) {
     InitialiseParams();
 
     if ( strcmp("--realtime", argv[1]) == 0 ) {
-        while ( Update() ) {
+        while (NoQuitMessageSDL()){
+            Update();
             Draw(screen);
             SDL_Renderframe(screen);
+            Print_Time();
         }
     } else if ( strcmp("--once", argv[1]) == 0 ) {
         Update();
@@ -147,6 +155,7 @@ void Draw(screen* screen) {
            for( int x=0; x<SCREEN_WIDTH; ++x )
             depthBuffer[y][x] = 0.0f;
 
+    #pragma omp parallel for schedule(dynamic)
     for(int i = 0; i < triangles.size(); i++) {
         vec3 triangleColor  = triangles[i].color;
         vec4 triangleNormal = triangles[i].normal;
@@ -160,101 +169,79 @@ void Draw(screen* screen) {
     }
 }
 
-bool Update() {
-    static int t = SDL_GetTicks();
+void Update() {
+    const uint8_t *keyState = SDL_GetKeyboardState(NULL);
+    int lastRecordedX = 0;
+    int lastRecordedY = 0;
+    SDL_GetRelativeMouseState(&lastRecordedX, &lastRecordedY);
+
+    /* Move camera forward */
+    if (keyState[SDL_SCANCODE_W]) {camera.translation += vec4(0, 0, -CAMERA_MOVEMENT_SPEED, 0);}
+
+    /* Move camera backwards */
+    if (keyState[SDL_SCANCODE_S]) {camera.translation += vec4(0, 0, CAMERA_MOVEMENT_SPEED, 0);}
+
+    /* Move camera left */
+    if (keyState[SDL_SCANCODE_A]) {camera.translation += vec4(CAMERA_MOVEMENT_SPEED, 0, 0, 0);}
+
+    /* Move camera right */
+    if (keyState[SDL_SCANCODE_D]) {camera.translation += vec4(-CAMERA_MOVEMENT_SPEED, 0, 0, 0);}
+
+    /* Move camera up */
+    if (keyState[SDL_SCANCODE_Q]) {camera.translation += vec4(0, CAMERA_MOVEMENT_SPEED, 0, 0);}
+
+    /* Move camera down */
+    if (keyState[SDL_SCANCODE_E]) {camera.translation += vec4(0, -CAMERA_MOVEMENT_SPEED, 0, 0);}
+
+    /* Translate light forward */
+    if (keyState[SDL_SCANCODE_I]) {light.position += vec4(0, 0, LIGHT_MOVEMENT_SPEED, 0);}
+
+    /* Translate light backwards */
+    if (keyState[SDL_SCANCODE_K]) {light.position += vec4(0, 0, -LIGHT_MOVEMENT_SPEED, 0);}
+
+    /* Translate light left */
+    if (keyState[SDL_SCANCODE_J]) {light.position += vec4(-LIGHT_MOVEMENT_SPEED, 0, 0, 0);}
+
+    /* Translate light right */
+    if (keyState[SDL_SCANCODE_L]) {light.position += vec4(LIGHT_MOVEMENT_SPEED, 0, 0, 0);}
+
+    /* Translate light up */
+    if (keyState[SDL_SCANCODE_U]) {light.position += vec4(0, -LIGHT_MOVEMENT_SPEED, 0, 0);}
+
+    /* Translate light down */
+    if (keyState[SDL_SCANCODE_O]) {light.position += vec4(0, LIGHT_MOVEMENT_SPEED, 0, 0);}
+
+    /* Reset camera and light */
+    if (keyState[SDL_SCANCODE_SPACE]) {InitialiseParams();}
+
+    /* Rotate camera left */
+    if (lastRecordedX < 0) {RotateY(camera.rotation, -CAMERA_ROTATION_SPEED);}
+
+    /* Rotate camera right */
+    if (lastRecordedX > 0) {RotateY(camera.rotation,  CAMERA_ROTATION_SPEED);}
+
+    /* Rotate camera up */
+    if (lastRecordedY < 0) {RotateX(camera.rotation,  CAMERA_ROTATION_SPEED);}
+
+    /* Rotate camera down */
+    if (lastRecordedY > 0) {RotateX(camera.rotation, -CAMERA_ROTATION_SPEED);}
+}
+
+void Print_Time() {
+
+    static int t = 0;
+    int counter = 0;
+    ++counter;
+
+    if (100 == counter) {
     /* Compute frame time */
     int t2 = SDL_GetTicks();
     float dt = float(t2-t);
     t = t2;
     cout << "Render time: " << dt << " ms." << endl;
-
-    SDL_Event event;
-    SDL_SetRelativeMouseMode(SDL_TRUE);
-    while(SDL_PollEvent(&event)) {
-        if (event.type == SDL_QUIT) {
-	        return false;
-        } else if (event.type == SDL_KEYDOWN) {
-            int key_code = event.key.keysym.sym;
-            float S  = camera.moveSpeed;
-            float LS = light.moveSpeed;
-            switch(key_code) {
-                case SDLK_w:
-                    /* Move camera forward */
-                    camera.translation += S * vec4(0, 0, -1, 0);
-                    break;
-                case SDLK_s:
-                    /* Move camera backwards */
-                    camera.translation += S * vec4(0, 0,  1, 0);
-                    break;
-                case SDLK_a:
-                    /* Move camera left */
-                    camera.translation += S * vec4( 1, 0, 0, 0);
-                    break;
-                case SDLK_d:
-                    /* Move camera right */
-                    camera.translation += S * vec4(-1, 0, 0, 0);
-                    break;
-                case SDLK_q:
-                    /* Move camera up */
-                    camera.translation += S * vec4(0,  1, 0, 0);
-                    break;
-                case SDLK_e:
-                    /* Move camera down */
-                    camera.translation += S * vec4(0, -1, 0, 0);
-                    break;
-                case SDLK_i:
-                    // Translate light forward
-                    light.position += LS * vec4(0, 0, 1.0f, 0);
-                    break;
-                case SDLK_k:
-                    // Translate light backwards
-                    light.position -= LS * vec4(0, 0, 1.0f, 0);
-                    break;
-                case SDLK_j:
-                    // Translate light left
-                    light.position -= LS * vec4(1.0f, 0, 0, 0);
-                    break;
-                case SDLK_l:
-                    // Translate light right
-                    light.position += LS * vec4(1.0f, 0, 0, 0);
-                    break;
-                case SDLK_u:
-                    // Translate light up
-                    light.position -= LS * vec4(0, 1.0f, 0, 0);
-                    break;
-                case SDLK_o:
-                    // Translate light down
-                    light.position += LS * vec4(0, 1.0f, 0, 0);
-                    break;
-                case SDLK_SPACE:
-                    // Reset camera and light
-                    InitialiseParams();
-                case SDLK_ESCAPE:
-                    /* Quit */
-                    return false;
-                    break;
-            }
-        } else if (event.type == SDL_MOUSEMOTION) {
-                int dx = event.motion.xrel;
-                int dy = event.motion.yrel;
-                float S = camera.rotationSpeed;
-                if (dx > 0) {
-                    // Rotate camera left
-	                RotateY(camera.rotation, -S);
-                } else {
-                    // Rotate camera right
-                    RotateY(camera.rotation,  S);
-                }
-                if (dy > 0) {
-                    // Rotate camera up
-	                RotateX(camera.rotation,  S);
-                } else {
-                    // Rotate camera down
-	                RotateX(camera.rotation, -S);
-                }
-        }
+    counter = 0;
+    t = SDL_GetTicks();
     }
-    return true;
 }
 
 void InitialiseParams() {
@@ -265,13 +252,13 @@ void InitialiseParams() {
                            vec4(0.0, 1.0, 0.0, 0.0),
                            vec4(0.0, 0.0, 1.0, 0.0),
                            vec4(0.0, 0.0, 0.0, 1.0));
-    camera.moveSpeed     = 0.10f;
-    camera.rotationSpeed = 0.01f;
+    camera.moveSpeed = CAMERA_MOVEMENT_SPEED;
+    camera.rotationSpeed = CAMERA_ROTATION_SPEED;
 
     light.position = vec4(0,-0.5,-0.7,1.0);
     light.power = 14.0f * vec3( 1, 1, 1 );
     light.indirectPowerPerArea = 0.5f * vec3( 1, 1, 1 );
-    light.moveSpeed = 0.1f;
+    light.moveSpeed = LIGHT_MOVEMENT_SPEED;
 }
 
 void RotateX( mat4& rotation, float rad ) {
