@@ -139,7 +139,7 @@ void Draw(screen* screen) {
     float row_offset[9] = {0.0f, -0.5f,  0.0f, 0.0f, 0.5f, -0.5f, -0.5f,  0.5f, 0.5f};
 
     // Loop throught all pixels
-    #pragma omp parallel for schedule(dynamic)
+    #pragma omp parallel for
     for (int row = 0; row < SCREEN_HEIGHT; row++) {
         for (int col = 0; col < SCREEN_WIDTH; col++) {
             vec3 pixelColor = vec3(0,0,0);

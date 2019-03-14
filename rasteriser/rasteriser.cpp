@@ -47,8 +47,8 @@ vector<Triangle> triangles;
 Camera camera;
 Light light;
 
-#define SCREEN_WIDTH  2560
-#define SCREEN_HEIGHT 1600
+#define SCREEN_WIDTH  1280
+#define SCREEN_HEIGHT 800
 #define FULLSCREEN_MODE true
 
 // Store 1/z for each pixel
@@ -429,12 +429,24 @@ void DrawPolygon( screen* screen, const vector<Vertex>& vertices,
             Pixel P;
             P.x = col;
             P.y = row;
+
             float area = edgeFunction(V0, V1, V2);
             float w0   = edgeFunction(V1, V2, P) / area;
             float w1   = edgeFunction(V2, V0, P) / area;
-            float w2   = 1.0f - w1 - w0;
+            float w2   = edgeFunction(V0, V1, P) / area;
 
-            if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
+            vec2 edge0 = vec2(V2.x - V1.x, V2.y - V1.y);
+            vec2 edge1 = vec2(V0.x - V2.x, V0.y - V2.y);
+            vec2 edge2 = vec2(V1.x - V0.x, V1.y - V0.y);
+
+            bool overlaps = true;
+            // If the point is on the edge, test if it is a top or left edge,
+            // otherwise test if the edge function is positive
+            overlaps &= (w0 == 0 ? ((edge0.y == 0 && edge0.x > 0) || (edge0.y < 0)) : (w0 > 0));
+            overlaps &= (w1 == 0 ? ((edge1.y == 0 && edge1.x > 0) || (edge1.y < 0)) : (w1 > 0));
+            overlaps &= (w2 == 0 ? ((edge2.y == 0 && edge2.x > 0) || (edge2.y < 0)) : (w2 > 0));
+
+            if (overlaps) {
                 P.zinv = V0.zinv * w0 + V1.zinv * w1 + V2.zinv * w2;
                 P.pos3d = (V0.pos3d * V0.zinv * w0 +
                            V1.pos3d * V1.zinv * w1 +
