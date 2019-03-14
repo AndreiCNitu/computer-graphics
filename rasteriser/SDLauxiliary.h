@@ -162,6 +162,7 @@ screen* InitializeSDL(int width,int height, bool fullscreen)
 	     << SDL_GetError() << std::endl;
       exit(1);
     }
+    SDL_ShowCursor(0);
 
   return s;
 }

@@ -6,14 +6,15 @@ OS := $(shell uname)
 
 # Build options, OS independent
 ifeq ($(OS), Darwin)
-CC_OPTS=--std=c++11 -c -pipe -Wall -Wno-switch -O3 -qopenmp
+CC_OPTS=--std=c++11 -c -pipe -Wall -Wno-switch -Ofast -qopenmp
 LN_OPTS=-qopenmp
 CC=icpc
 else
-CC_OPTS=--std=c++11 -c -pipe -Wall -Wno-switch -O3 -fopenmp
+CC_OPTS=--std=c++11 -c -pipe -Wall -Wno-switch -Ofast -fopenmp
 LN_OPTS=-fopenmp
 CC=g++
 endif
+# use -ggdb -g3 for debugging
 
 # SDL options
 SDL_CFLAGS := $(shell sdl2-config --cflags)
@@ -43,4 +44,4 @@ run-urs:
 .PHONY: clean
 
 clean:
-	rm -f $(EXEC) *.o *.bmp
+	rm -f $(EXEC) *.o screenshot.bmp

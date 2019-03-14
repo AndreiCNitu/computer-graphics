@@ -47,7 +47,6 @@ vector<Triangle> triangles;
 Camera camera;
 Light light;
 
-/* https://www.h-schmidt.net/FloatConverter/IEEE754.html */
 #define SCREEN_WIDTH  2560
 #define SCREEN_HEIGHT 1600
 #define FULLSCREEN_MODE true
@@ -82,6 +81,7 @@ void DrawPolygon( screen* screen, const vector<Vertex>& vertices,
                                         vec3 color,
                                         vec4 normal,
                                         vec3 reflectance );
+float edgeFunction(Pixel &a, Pixel &b, Pixel &p);
 
 int main( int argc, char* argv[] ) {
     if (argc > 4) {
@@ -152,7 +152,7 @@ void Draw(screen* screen) {
            for( int x = 0; x < SCREEN_WIDTH; ++x )
             depthBuffer[y][x] = 0.0f;
 
-    #pragma omp parallel for
+    #pragma omp parallel for schedule(dynamic)
     for(int i = 0; i < triangles.size(); i++) {
         vec3 triangleColor  = triangles[i].color;
         vec4 triangleNormal = triangles[i].normal;
@@ -186,11 +186,9 @@ void Update() {
 }
 
 void Print_Time() {
-
     static int t = 0;
     static int counter = 0;
     ++counter;
-
     int step = 100;
 
     if (step == counter) {
@@ -205,6 +203,7 @@ void Print_Time() {
 }
 
 void InitialiseParams() {
+    /* https://www.h-schmidt.net/FloatConverter/IEEE754.html */
     camera.focalLength = SCREEN_HEIGHT;
     camera.position = vec4( 0.0, 0.0, -3.001f, 1.0);
     camera.translation = vec4( 0.0f, 0.0f, 0.0f, 1.0f);
@@ -260,6 +259,13 @@ void PixelShader( screen* screen, const Pixel& pixel, vec3 color,
                                                       vec3 reflectance ) {
     int x = pixel.x;
     int y = pixel.y;
+    if (x < 0             ||
+        y < 0             ||
+        x >= SCREEN_WIDTH ||
+        y >= SCREEN_HEIGHT) {
+            return;
+    }
+
     if( pixel.zinv > depthBuffer[y][x] ) {
         depthBuffer[y][x] = pixel.zinv;
 
@@ -394,11 +400,52 @@ void DrawPolygon( screen* screen, const vector<Vertex>& vertices,
                                         vec3 reflectance ) {
     int V = vertices.size();
     vector<Pixel> vertexPixels( V );
+    int xmin = numeric_limits<int>::max();
+    int ymin = numeric_limits<int>::max();
+    int xmax = numeric_limits<int>::min();
+    int ymax = numeric_limits<int>::min();
+
     for( int i = 0; i < V; i++ ) {
         VertexShader( vertices[i], vertexPixels[i] );
+        if (vertexPixels[i].x < xmin) {
+            xmin = vertexPixels[i].x;
+        }
+        if (vertexPixels[i].x > xmax) {
+            xmax = vertexPixels[i].x;
+        }
+        if (vertexPixels[i].y < ymin) {
+            ymin = vertexPixels[i].y;
+        }
+        if (vertexPixels[i].y > ymax) {
+            ymax = vertexPixels[i].y;
+        }
     }
-    vector<Pixel> leftPixels;
-    vector<Pixel> rightPixels;
-    ComputePolygonRows( vertexPixels, leftPixels, rightPixels );
-    DrawPolygonRows( screen, color, leftPixels, rightPixels, normal, reflectance );
+
+    Pixel V0 = vertexPixels[0];
+    Pixel V1 = vertexPixels[1];
+    Pixel V2 = vertexPixels[2];
+    for (int row = ymin; row < ymax; row++) {
+        for (int col = xmin; col < xmax; col++) {
+            Pixel P;
+            P.x = col;
+            P.y = row;
+            float area = edgeFunction(V0, V1, V2);
+            float w0   = edgeFunction(V1, V2, P) / area;
+            float w1   = edgeFunction(V2, V0, P) / area;
+            float w2   = 1.0f - w1 - w0;
+
+            if (w0 >= 0 && w1 >= 0 && w2 >= 0) {
+                P.zinv = V0.zinv * w0 + V1.zinv * w1 + V2.zinv * w2;
+                P.pos3d = (V0.pos3d * V0.zinv * w0 +
+                           V1.pos3d * V1.zinv * w1 +
+                           V2.pos3d * V2.zinv * w2)
+                         / (P.zinv);
+                PixelShader(screen, P, color, normal, reflectance);
+            }
+        }
+    }
+}
+
+float edgeFunction(Pixel &a, Pixel &b, Pixel &p) {
+    return ((p.x - a.x) * (b.y - a.y) - (p.y - a.y) * (b.x - a.x));
 }
