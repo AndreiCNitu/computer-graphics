@@ -6,7 +6,6 @@
 #include "ModelLoader.h"
 #include "Movement.h"
 #include <stdint.h>
-#include <omp.h>
 
 using namespace std;
 using glm::ivec2;
@@ -47,8 +46,8 @@ vector<Triangle> triangles;
 Camera camera;
 Light light;
 
-#define SCREEN_WIDTH  1280
-#define SCREEN_HEIGHT 800
+#define SCREEN_WIDTH  2560
+#define SCREEN_HEIGHT 1600
 #define FULLSCREEN_MODE true
 
 // Store 1/z for each pixel
@@ -184,7 +183,8 @@ void Print_Time() {
         float dt = float(t2-t);
         t = t2;
         std::cout.precision(2);
-        std::cout << std::fixed << dt / step << " ms" << '\t' << (step * 1000) / dt << " fps" << endl;
+        std::cout << std::fixed << dt / step << " ms" << '\t'
+                  << (step * 1000) / dt << " fps" << endl;
         counter = 0;
     }
 }
@@ -295,10 +295,14 @@ void DrawPolygon( screen* screen, const vector<Vertex>& vertices,
             ymax = vertexPixels[i].y;
         }
     }
-
     Pixel V0 = vertexPixels[0];
     Pixel V1 = vertexPixels[1];
     Pixel V2 = vertexPixels[2];
+
+    vec2 edge0 = vec2(V2.x - V1.x, V2.y - V1.y);
+    vec2 edge1 = vec2(V0.x - V2.x, V0.y - V2.y);
+    vec2 edge2 = vec2(V1.x - V0.x, V1.y - V0.y);
+
     for (int row = ymin; row < ymax; row++) {
         for (int col = xmin; col < xmax; col++) {
             Pixel P;
@@ -309,10 +313,6 @@ void DrawPolygon( screen* screen, const vector<Vertex>& vertices,
             float w0   = edgeFunction(V1, V2, P) / area;
             float w1   = edgeFunction(V2, V0, P) / area;
             float w2   = edgeFunction(V0, V1, P) / area;
-
-            vec2 edge0 = vec2(V2.x - V1.x, V2.y - V1.y);
-            vec2 edge1 = vec2(V0.x - V2.x, V0.y - V2.y);
-            vec2 edge2 = vec2(V1.x - V0.x, V1.y - V0.y);
 
             bool overlaps = true;
             // If the point is on the edge, test if it is a top or left edge,
