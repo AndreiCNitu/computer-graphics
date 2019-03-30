@@ -36,8 +36,8 @@ struct Light {
     float moveSpeed;
 };
 
-#define SCREEN_WIDTH  512
-#define SCREEN_HEIGHT 512
+#define SCREEN_WIDTH  800
+#define SCREEN_HEIGHT 800
 #define FULLSCREEN_MODE false
 #define SHADOW_BIAS 0.00064f
 #define PHONG_N 10
@@ -50,7 +50,8 @@ struct Light {
 **  8   5   9
 ** Set to 1/5/9 */
 #define AA_SAMPLES 1
-#define MAX_DEPTH 2
+#define MAX_DEPTH 3
+#define N_SAMPLES 2
 
 
 vector<Triangle> triangles;
@@ -271,7 +272,7 @@ void InitialiseParams() {
 
 vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
     if (depth > MAX_DEPTH) {
-        vec3(0,0,0);
+        return vec3(0,0,0);
     }
 
     // compute direct ligthing
@@ -290,7 +291,6 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
     N = (vec3) surfaceNormal;
     createCoordinateSystem(N, Nt, Nb);
 
-    int N_SAMPLES = 2;
     float pdf = 1 / (2 * M_PI);
     for (int i = 0; i < N_SAMPLES; ++i) {
         // create sample in world space

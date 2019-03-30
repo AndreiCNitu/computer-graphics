@@ -6,11 +6,11 @@ OS := $(shell uname)
 
 # Build options, OS independent
 ifeq ($(OS), Darwin)
-CC_OPTS=--std=c++11 -c -pipe -Wall -Wno-switch -Ofast -xHOST -ggdb -g3 -qopenmp
+CC_OPTS=--std=c++11 -c -pipe -Wall -Wno-switch -Ofast -xHOST -qopenmp
 LN_OPTS=-qopenmp
 CC=icpc
 else
-CC_OPTS=--std=c++11 -c -pipe -Wall -Wno-switch -Ofast -xHOST -fopenmp
+CC_OPTS=--std=c++11 -c -pipe -Wno-switch -Ofast -march=native -fopenmp # -Wall
 LN_OPTS=-fopenmp
 CC=g++
 endif
