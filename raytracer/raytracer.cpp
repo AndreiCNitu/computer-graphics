@@ -7,6 +7,7 @@
 #include <stdint.h>
 #include <limits>
 #include <math.h>
+#include <random>
 
 using namespace std;
 using glm::vec3;
@@ -35,9 +36,9 @@ struct Light {
     float moveSpeed;
 };
 
-#define SCREEN_WIDTH  2560
-#define SCREEN_HEIGHT 1600
-#define FULLSCREEN_MODE true
+#define SCREEN_WIDTH  512
+#define SCREEN_HEIGHT 512
+#define FULLSCREEN_MODE false
 #define SHADOW_BIAS 0.00064f
 #define PHONG_N 10
 #define KD 0.60f
@@ -49,6 +50,7 @@ struct Light {
 **  8   5   9
 ** Set to 1/5/9 */
 #define AA_SAMPLES 1
+#define MAX_DEPTH 2
 
 
 vector<Triangle> triangles;
@@ -57,6 +59,7 @@ Light light;
 
 bool Update();
 void Draw(screen* screen);
+vec3 castRay(vec4 &orig, vec4 &dir, int depth);
 bool TriangleIntersection(
       vec4 start,
       vec4 dir,
@@ -70,9 +73,13 @@ bool ClosestIntersection(
 void RotateX( mat4& rotation, float rad );
 void RotateY( mat4& rotation, float rad );
 vec3 DirectLight(   const Intersection& intersection );
-vec3 DiffuseLight(  const Intersection& intersection );
 vec3 SpecularLight( const Intersection& intersection );
 void InitialiseParams(); // Initialise camera and light
+
+default_random_engine engine(std::random_device{}());
+uniform_real_distribution<float> distribution(0.0f, 1.0f);
+vec3 uniformSampleHemisphere(const float t, const float p);
+void createCoordinateSystem(const vec3 &N, vec3 &Nt, vec3 &Nb);
 
 int main( int argc, char* argv[] ) {
 
@@ -135,31 +142,17 @@ int main( int argc, char* argv[] ) {
 void Draw(screen* screen) {
     /* Clear buffer */
     memset(screen->buffer, 0, screen->height * screen->width * sizeof(uint32_t));
-    float col_offset[9] = {0.0f,  0.0f, -0.5f, 0.5f, 0.0f, -0.5f,  0.5f, -0.5f, 0.5f};
-    float row_offset[9] = {0.0f, -0.5f,  0.0f, 0.0f, 0.5f, -0.5f, -0.5f,  0.5f, 0.5f};
 
     // Loop throught all pixels
     #pragma omp parallel for
     for (int row = 0; row < SCREEN_HEIGHT; row++) {
         for (int col = 0; col < SCREEN_WIDTH; col++) {
-            vec3 pixelColor = vec3(0,0,0);
-            for(int sample = 0; sample < AA_SAMPLES; sample++) {
-                vec4 primaryRay = camera.rotation * vec4(col - SCREEN_WIDTH  / 2.0f + col_offset[sample],
-                                                         row - SCREEN_HEIGHT / 2.0f + row_offset[sample],
-                                                         camera.focalLength, 0.0);
-                Intersection primaryIntersect;
-                if (ClosestIntersection(camera.position, primaryRay, triangles, primaryIntersect)) {
-                    if (triangles[primaryIntersect.triangleIndex].color != vec3(0.15f, 0.15f, 0.75f)) {
-                        pixelColor += triangles[primaryIntersect.triangleIndex].color
-                                    * (DirectLight(primaryIntersect) + light.indirect);
-                    } else {
-                        vec3 surfaceColor = triangles[primaryIntersect.triangleIndex].color;
-                        pixelColor += DiffuseLight(primaryIntersect ) * KD * surfaceColor
-                                    + SpecularLight(primaryIntersect) * KS;
-                    }
-                }
-            }
-            PutPixelSDL(screen, col, row, pixelColor / (float) AA_SAMPLES);
+            vec4 primaryRay = camera.rotation * vec4(col - SCREEN_WIDTH  / 2.0f,
+                                                     row - SCREEN_HEIGHT / 2.0f,
+                                                     camera.focalLength, 0.0);
+
+            vec3 pixelColor = castRay(camera.position, primaryRay, 0);
+            PutPixelSDL(screen, col, row, pixelColor);
         }
     }
 }
@@ -276,6 +269,64 @@ void InitialiseParams() {
     light.moveSpeed = 0.1f;
 }
 
+vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
+    if (depth > MAX_DEPTH) {
+        vec3(0,0,0);
+    }
+
+    // compute direct ligthing
+    Intersection primaryIntersect;
+    vec4 surfaceNormal;
+    vec3 directLighting;
+    if (!ClosestIntersection(orig, dir, triangles, primaryIntersect)) {
+        return vec3(0,0,0);
+    }
+    surfaceNormal = triangles[primaryIntersect.triangleIndex].normal;
+    directLighting = DirectLight(primaryIntersect);
+
+    // Sample from the hemisphere
+    vec3 indirectLighting = vec3(0,0,0);
+    vec3 N, Nt, Nb;
+    N = (vec3) surfaceNormal;
+    createCoordinateSystem(N, Nt, Nb);
+
+    int N_SAMPLES = 2;
+    float pdf = 1 / (2 * M_PI);
+    for (int i = 0; i < N_SAMPLES; ++i) {
+        // create sample in world space
+        float t = distribution(engine);
+        float p = distribution(engine);
+        vec3 sample = uniformSampleHemisphere(t, p);
+        vec4 sampleWorld = vec4(
+             sample.x * Nb.x + sample.y * N.x + sample.z * Nt.x,
+             sample.x * Nb.y + sample.y * N.y + sample.z * Nt.y,
+             sample.x * Nb.z + sample.y * N.z + sample.z * Nt.z,
+             1.0f);
+
+        vec4 bouncePoint = primaryIntersect.position + sampleWorld * SHADOW_BIAS;
+        indirectLighting += t * castRay(bouncePoint, sampleWorld, depth + 1);
+    }
+    // divide by number of samples and the PDF
+    indirectLighting /= N_SAMPLES * pdf;
+    vec3 pointColor = (directLighting + indirectLighting) * triangles[primaryIntersect.triangleIndex].color;
+    return pointColor / (float) M_PI;
+}
+
+void createCoordinateSystem(const vec3 &N, vec3 &Nt, vec3 &Nb)  {
+    Nt = vec3(N.z, 0, -N.x) / sqrtf(N.x * N.x + N.z * N.z);
+    Nb = cross(N, Nt);
+}
+
+vec3 uniformSampleHemisphere(const float t, const float p) {
+    // r1 <- [0,1] => 1 - r1 <- [0,1] => we can use cos(theta) = r1
+    float phi = 2 * M_PI * p;
+    float y = t; // cos(theta)
+    // sin(theta) = srt(1 - cos^2(theta))
+    float x = sqrtf(1 - t * t) * cosf(phi); // sin(theta) * cos(phi)
+    float z = sqrtf(1 - t * t) * sinf(phi); // sin(theta) * sin(phi)
+    return vec3(x, y, z);
+}
+
 bool TriangleIntersection( vec4 start, vec4 dir, Triangle triangle, Intersection& intersection ) {
 
     vec3 dir3 = (vec3) dir;
@@ -374,10 +425,6 @@ vec3 DirectLight( const Intersection& intersection ) {
         }
     }
     return returnVector;
-}
-
-vec3 DiffuseLight( const Intersection& intersection ) {
-    return DirectLight(intersection) + light.indirect;
 }
 
 vec3 SpecularLight( const Intersection& intersection ) {
