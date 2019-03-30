@@ -36,8 +36,8 @@ struct Light {
     float moveSpeed;
 };
 
-#define SCREEN_WIDTH  800
-#define SCREEN_HEIGHT 800
+#define SCREEN_WIDTH  900
+#define SCREEN_HEIGHT 900
 #define FULLSCREEN_MODE false
 #define SHADOW_BIAS 0.00064f
 #define PHONG_N 10
@@ -50,13 +50,16 @@ struct Light {
 **  8   5   9
 ** Set to 1/5/9 */
 #define AA_SAMPLES 1
-#define MAX_DEPTH 3
-#define N_SAMPLES 2
+#define MAX_DEPTH 4
+#define N_SAMPLES 1
 
 
 vector<Triangle> triangles;
 Camera camera;
 Light light;
+
+vec3 image[SCREEN_WIDTH][SCREEN_HEIGHT];
+int iterations = 0;
 
 bool Update();
 void Draw(screen* screen);
@@ -143,6 +146,7 @@ int main( int argc, char* argv[] ) {
 void Draw(screen* screen) {
     /* Clear buffer */
     memset(screen->buffer, 0, screen->height * screen->width * sizeof(uint32_t));
+    iterations++;
 
     // Loop throught all pixels
     #pragma omp parallel for
@@ -153,7 +157,8 @@ void Draw(screen* screen) {
                                                      camera.focalLength, 0.0);
 
             vec3 pixelColor = castRay(camera.position, primaryRay, 0);
-            PutPixelSDL(screen, col, row, pixelColor);
+            image[col][row] += pixelColor;
+            PutPixelSDL(screen, col, row, image[col][row] / (float) iterations);
         }
     }
 }
@@ -313,9 +318,14 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
 }
 
 void createCoordinateSystem(const vec3 &N, vec3 &Nt, vec3 &Nb)  {
-    Nt = vec3(N.z, 0, -N.x) / sqrtf(N.x * N.x + N.z * N.z);
+    if (std::fabs(N.x) > std::fabs(N.y)) {
+        Nt = vec3(N.z, 0, -N.x) / sqrtf(N.x * N.x + N.z * N.z);
+    } else {
+        Nt = vec3(0, -N.z, N.y) / sqrtf(N.y * N.y + N.z * N.z);
+    }
     Nb = cross(N, Nt);
 }
+
 
 vec3 uniformSampleHemisphere(const float t, const float p) {
     // r1 <- [0,1] => 1 - r1 <- [0,1] => we can use cos(theta) = r1
