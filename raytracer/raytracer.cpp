@@ -34,6 +34,7 @@ struct Light {
     vec3  color;
     vec3  indirect;
     float moveSpeed;
+    float size;
 };
 
 #define SCREEN_WIDTH  900
@@ -43,14 +44,8 @@ struct Light {
 #define PHONG_N 10
 #define KD 0.60f
 #define KS 0.008f
-/*  6   2   7
-**    \ | /
-** 3 -- 1 -- 4
-**    / | \
-**  8   5   9
-** Set to 1/5/9 */
-#define AA_SAMPLES 1
-#define MAX_DEPTH 4
+
+#define MAX_DEPTH 1
 #define N_SAMPLES 1
 
 
@@ -152,8 +147,10 @@ void Draw(screen* screen) {
     #pragma omp parallel for
     for (int row = 0; row < SCREEN_HEIGHT; row++) {
         for (int col = 0; col < SCREEN_WIDTH; col++) {
-            vec4 primaryRay = camera.rotation * vec4(col - SCREEN_WIDTH  / 2.0f,
-                                                     row - SCREEN_HEIGHT / 2.0f,
+            float col_offset = distribution(engine) - 0.5f;
+            float row_offset = distribution(engine) - 0.5f;
+            vec4 primaryRay = camera.rotation * vec4(col - SCREEN_WIDTH  / 2.0f + col_offset,
+                                                     row - SCREEN_HEIGHT / 2.0f + row_offset,
                                                      camera.focalLength, 0.0);
 
             vec3 pixelColor = castRay(camera.position, primaryRay, 0);
@@ -176,6 +173,11 @@ bool Update() {
         if (e.type == SDL_QUIT) {
 	        return false;
 	    } else if (e.type == SDL_KEYDOWN) {
+            iterations = 0;
+            for (int y = 0; y < SCREEN_WIDTH; y++)
+                for (int x = 0; x < SCREEN_HEIGHT; x++)
+                    image[y][x] = vec3(0,0,0);
+
 	        int key_code = e.key.keysym.sym;
             float CS = camera.moveSpeed;
             float LS = light.moveSpeed;
@@ -273,6 +275,8 @@ void InitialiseParams() {
     light.color = 14.0f * vec3( 1.0, 1.0, 1.0 );
     light.indirect = 0.3f*vec3( 1, 1, 1 );
     light.moveSpeed = 0.1f;
+    light.size = 40.0f / 555.0f;
+    cout << "SIZE " << light.size;
 }
 
 vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
@@ -420,7 +424,13 @@ vec3 DirectLight( const Intersection& intersection ) {
 
     vec4  normalH = triangles[intersection.triangleIndex].normal;
     vec3  normal = (vec3) normalH;
-    vec3  lightVector  = (vec3) (light.position - intersection.position);
+    float x_offset = (distribution(engine) - 0.5f) * light.size;
+    float z_offset = (distribution(engine) - 0.5f) * light.size;
+    vec4 aliasedLight = vec4(light.position.x + x_offset,
+                             light.position.y,
+                             light.position.z + z_offset,
+                             light.position.w);
+    vec3  lightVector  = (vec3) (aliasedLight - intersection.position);
     float radius = length( lightVector );
     lightVector = normalize( lightVector );
     vec4 lightVectorH = vec4(lightVector.x, lightVector.y, lightVector.z, 1.0f);
@@ -446,7 +456,6 @@ vec3 SpecularLight( const Intersection& intersection ) {
 */
     vec3 incident = (vec3) (intersection.position - light.position);
     vec3 normal   = (vec3) (triangles[intersection.triangleIndex].normal);
-
     vec3 reflected = 2.0f * dot(normal, incident) * normal - incident;
     vec3 viewDir = (vec3) (intersection.position - camera.position);
     reflected = normalize(reflected);
