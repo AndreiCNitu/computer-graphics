@@ -32,20 +32,19 @@ struct Camera {
 struct Light {
     vec4  position;
     vec3  color;
-    vec3  indirect;
     float moveSpeed;
     float size;
 };
 
-#define SCREEN_WIDTH  900
-#define SCREEN_HEIGHT 900
-#define FULLSCREEN_MODE false
+#define SCREEN_WIDTH  1600
+#define SCREEN_HEIGHT 1600
+#define FULLSCREEN_MODE true
 #define SHADOW_BIAS 0.00064f
 #define PHONG_N 10
 #define KD 0.60f
 #define KS 0.008f
 
-#define MAX_DEPTH 1
+#define MIN_DEPTH 4
 #define N_SAMPLES 1
 
 
@@ -166,7 +165,12 @@ bool Update() {
     int t2 = SDL_GetTicks();
     float dt = float(t2-t);
     t = t2;
-    cout << "Render time: " << dt << " ms. " << '\t' << 1000/dt << " fps." << endl;
+    system("clear");
+    cout << "-------------------------------"     << endl;
+    cout << " Minimum depth:     " << MIN_DEPTH   << endl;
+    cout << " Number of samples: " << iterations  << endl;
+    cout << " Frame render time: " << dt << " ms" << endl;
+    cout << "-------------------------------"     << endl;
 
     SDL_Event e;
     while(SDL_PollEvent(&e)) {
@@ -272,15 +276,17 @@ void InitialiseParams() {
     camera.rotationSpeed = 0.1f;
 
     light.position = vec4( 0.0f, -0.5f, -1.08f, 1.0f );
-    light.color = 14.0f * vec3( 1.0, 1.0, 1.0 );
-    light.indirect = 0.3f*vec3( 1, 1, 1 );
+    light.color = 28.0f * vec3( 1.0, 1.0, 1.0 );
     light.moveSpeed = 0.1f;
     light.size = 40.0f / 555.0f;
-    cout << "SIZE " << light.size;
 }
 
 vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
-    if (depth > MAX_DEPTH) {
+    // probability to continue
+    float p_i = (depth <= MIN_DEPTH) ? 1.0f :
+                (std::max(0.1f, 1.0f - depth * 0.04f));
+    float r_i = distribution(engine);
+    if (r_i < 1.0f - p_i) {
         return vec3(0,0,0);
     }
 
@@ -315,8 +321,8 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
         vec4 bouncePoint = primaryIntersect.position + sampleWorld * SHADOW_BIAS;
         indirectLighting += t * castRay(bouncePoint, sampleWorld, depth + 1);
     }
-    // divide by number of samples and the PDF
-    indirectLighting /= N_SAMPLES * pdf;
+    // divide by number of samples, the PDF and the russian roulette factor
+    indirectLighting /= N_SAMPLES * pdf * p_i;
     vec3 pointColor = (directLighting + indirectLighting) * triangles[primaryIntersect.triangleIndex].color;
     return pointColor / (float) M_PI;
 }
@@ -329,7 +335,6 @@ void createCoordinateSystem(const vec3 &N, vec3 &Nt, vec3 &Nb)  {
     }
     Nb = cross(N, Nt);
 }
-
 
 vec3 uniformSampleHemisphere(const float t, const float p) {
     // r1 <- [0,1] => 1 - r1 <- [0,1] => we can use cos(theta) = r1
