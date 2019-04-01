@@ -44,4 +44,4 @@ run-cube:
 .PHONY: clean
 
 clean:
-	rm -f $(EXEC) *.o *.bmp
+	rm -f $(EXEC) *.o screenshot.bmp

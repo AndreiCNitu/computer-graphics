@@ -111,7 +111,7 @@ bool LoadModel( vector<Triangle>& triangles, const char* filename ) {
                 uv[pos] = vertex;
             }
 
-            Triangle triangle = Triangle( v[2], v[1], v[0], COLOR );
+            Triangle triangle = Triangle( v[2], v[1], v[0], COLOR, 0 );
             // Triangle triangle = Triangle( v[2], v[1], v[0], uv[0], uv[1], uv[2] );
             triangles.push_back(triangle);
         } else {
@@ -239,24 +239,24 @@ bool LoadCornellBox( vector<Triangle>& triangles ) {
     vec4 H(0,L,L,1);
 
     // Floor:
-    triangles.push_back( Triangle( C, B, A, green ) );
-    triangles.push_back( Triangle( C, D, B, green ) );
+    triangles.push_back( Triangle( C, B, A, white, 0 ) );
+    triangles.push_back( Triangle( C, D, B, white, 0 ) );
 
     // Left wall
-    triangles.push_back( Triangle( A, E, C, purple ) );
-    triangles.push_back( Triangle( C, E, G, purple ) );
+    triangles.push_back( Triangle( A, E, C, red, 0 ) );
+    triangles.push_back( Triangle( C, E, G, red, 0 ) );
 
     // Right wall
-    triangles.push_back( Triangle( F, B, D, yellow ) );
-    triangles.push_back( Triangle( H, F, D, yellow ) );
+    triangles.push_back( Triangle( F, B, D, green, 0 ) );
+    triangles.push_back( Triangle( H, F, D, green, 0 ) );
 
     // Ceiling
-    triangles.push_back( Triangle( E, F, G, cyan ) );
-    triangles.push_back( Triangle( F, H, G, cyan ) );
+    triangles.push_back( Triangle( E, F, G, white, 0 ) );
+    triangles.push_back( Triangle( F, H, G, white, 0 ) );
 
     // Back wall
-    triangles.push_back( Triangle( G, D, C, white ) );
-    triangles.push_back( Triangle( G, H, D, white ) );
+    triangles.push_back( Triangle( G, D, C, white, 0 ) );
+    triangles.push_back( Triangle( G, H, D, white, 0 ) );
 
     // ----------------------------------------------
     // Scale to the volume [-1,1]^3
