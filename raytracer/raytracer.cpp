@@ -60,22 +60,13 @@ bool ClosestIntersection(
 void RotateX( mat4& rotation, float rad );
 void RotateY( mat4& rotation, float rad );
 void InitialiseParams(); // Initialise camera and light
+void filmic(float &x);
+void hable(float &x);
 
 default_random_engine engine(std::random_device{}());
 uniform_real_distribution<float> distribution(0.0f, 1.0f);
 vec3 uniformSampleHemisphere(const float t, const float p);
 void createCoordinateSystem(const vec3 &N, vec3 &Nt, vec3 &Nb);
-
-void hable(float &x) {
-    float A = 0.15;
-    float B = 0.50;
-    float C = 0.10;
-    float D = 0.20;
-    float E = 0.02;
-    float F = 0.30;
-
-    x = ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F;
-}
 
 int main( int argc, char* argv[] ) {
 
@@ -153,9 +144,9 @@ void Draw(screen* screen) {
             vec3 pixelColor = castRay(camera.position, primaryRay, 0);
             image[col][row] += pixelColor;
             vec3 tonedColor = image[col][row] / (float) iterations;
-            hable(tonedColor.x);
-            hable(tonedColor.y);
-            hable(tonedColor.z);
+            filmic(tonedColor.x);
+            filmic(tonedColor.y);
+            filmic(tonedColor.z);
             PutPixelSDL(screen, col, row, tonedColor);
         }
     }
@@ -395,4 +386,24 @@ void RotateY( mat4& rotation, float rad ) {
                   vec4(sin(rad), 0,  cos(rad), 0),
                   vec4(0,        0,  0,        1));
     rotation = R * rotation;
+}
+
+void hable(float &x) {
+    float A = 0.15;
+    float B = 0.50;
+    float C = 0.10;
+    float D = 0.20;
+    float E = 0.02;
+    float F = 0.30;
+
+    x = ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F;
+}
+
+void filmic(float &x) {
+    float a = 2.51f;
+    float b = 0.03f;
+    float c = 2.43f;
+    float d = 0.59f;
+    float e = 0.14f;
+    x = ((x*(a*x+b))/(x*(c*x+d)+e));
 }
