@@ -66,6 +66,17 @@ uniform_real_distribution<float> distribution(0.0f, 1.0f);
 vec3 uniformSampleHemisphere(const float t, const float p);
 void createCoordinateSystem(const vec3 &N, vec3 &Nt, vec3 &Nb);
 
+void hable(float &x) {
+    float A = 0.15;
+    float B = 0.50;
+    float C = 0.10;
+    float D = 0.20;
+    float E = 0.02;
+    float F = 0.30;
+
+    x = ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F;
+}
+
 int main( int argc, char* argv[] ) {
 
     if (argc > 4) {
@@ -141,7 +152,11 @@ void Draw(screen* screen) {
 
             vec3 pixelColor = castRay(camera.position, primaryRay, 0);
             image[col][row] += pixelColor;
-            PutPixelSDL(screen, col, row, image[col][row] / (float) iterations);
+            vec3 tonedColor = image[col][row] / (float) iterations;
+            hable(tonedColor.x);
+            hable(tonedColor.y);
+            hable(tonedColor.z);
+            PutPixelSDL(screen, col, row, tonedColor);
         }
     }
 }
