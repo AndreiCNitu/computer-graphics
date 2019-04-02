@@ -29,14 +29,14 @@ struct Camera {
     float rotationSpeed;
 };
 
-#define SCREEN_WIDTH  1600
-#define SCREEN_HEIGHT 1600
+#define SCREEN_WIDTH  1080
+#define SCREEN_HEIGHT 1080
 #define FULLSCREEN_MODE true
 #define SHADOW_BIAS 0.00064f
 #define MIN_DEPTH 5
 #define RR_PROB 0.95f
-#define MAX_SAMPLES 8
-#define DROP_FACTOR 8
+#define MAX_SAMPLES 1
+#define DROP_FACTOR 1
 
 vector<Triangle> triangles;
 Camera camera;
@@ -170,10 +170,10 @@ bool Update() {
         if (e.type == SDL_QUIT) {
 	        return false;
 	    } else if (e.type == SDL_KEYDOWN) {
-            iterations = 0;
-            for (int y = 0; y < SCREEN_WIDTH; y++)
-                for (int x = 0; x < SCREEN_HEIGHT; x++)
-                    image[y][x] = vec3(0,0,0);
+            // iterations = 0;
+            // for (int y = 0; y < SCREEN_WIDTH; y++)
+            //     for (int x = 0; x < SCREEN_HEIGHT; x++)
+            //         image[y][x] = vec3(0,0,0);
 
 	        int key_code = e.key.keysym.sym;
             float CS = camera.moveSpeed;
@@ -267,26 +267,38 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
     N = (vec3) surface.normal;
     createCoordinateSystem(N, Nt, Nb);
 
-    int samples = max( (int) (MAX_SAMPLES / pow(DROP_FACTOR, depth)), 1 );
-    float pdf = 1 / (2 * M_PI);
-    for (int i = 0; i < samples; ++i) {
-        // create sample in world space
-        float t = distribution(engine);
-        float p = distribution(engine);
-        vec3 sample = uniformSampleHemisphere(t, p);
-        vec4 sampleWorld = vec4(
-             sample.x * Nb.x + sample.y * N.x + sample.z * Nt.x,
-             sample.x * Nb.y + sample.y * N.y + sample.z * Nt.y,
-             sample.x * Nb.z + sample.y * N.z + sample.z * Nt.z,
-             1.0f);
-
-        vec4 bouncePoint = primaryIntersect.position + sampleWorld * SHADOW_BIAS;
-        indirectLight += t * castRay(bouncePoint, sampleWorld, depth + 1);
-    }
-    // divide by number of samples, the PDF and the russian roulette factor
-    indirectLight /= samples * pdf * rr_prob;
+    vec3 pointColor;
     vec3 emmittedLight = surface.emission * vec3(1, 1, 1);
-    vec3 pointColor = (emmittedLight + indirectLight) * surface.color;
+    if (surface.type == 0) {
+        int samples = max( (int) (MAX_SAMPLES / pow(DROP_FACTOR, depth)), 1 );
+        float pdf = 1 / (2 * M_PI);
+        for (int i = 0; i < samples; ++i) {
+            // create sample in world space
+            float t = distribution(engine);
+            float p = distribution(engine);
+            vec3 sample = uniformSampleHemisphere(t, p);
+            vec4 sampleWorld = vec4(
+                 sample.x * Nb.x + sample.y * N.x + sample.z * Nt.x,
+                 sample.x * Nb.y + sample.y * N.y + sample.z * Nt.y,
+                 sample.x * Nb.z + sample.y * N.z + sample.z * Nt.z,
+                 1.0f);
+
+            vec4 bouncePoint = primaryIntersect.position + sampleWorld * SHADOW_BIAS;
+            indirectLight += t * castRay(bouncePoint, sampleWorld, depth + 1);
+        }
+        // divide by number of samples, the PDF and the russian roulette factor
+        indirectLight /= samples * pdf * rr_prob;
+        pointColor = (emmittedLight + indirectLight) * surface.color;
+    } else if (surface.type == 1) {
+        vec3 reflectedRay3 = reflect((vec3) dir, (vec3) surface.normal);
+        vec4 reflectedRay  = vec4(reflectedRay3.x,
+                                  reflectedRay3.y,
+                                  reflectedRay3.z,
+                                  1.0f);
+        vec4 bouncePoint = primaryIntersect.position + surface.normal * SHADOW_BIAS;
+        indirectLight += castRay(bouncePoint, reflectedRay, depth + 1);
+        pointColor = emmittedLight + indirectLight;
+    }
     return pointColor / (float) M_PI;
 }
 

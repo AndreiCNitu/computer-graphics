@@ -19,10 +19,11 @@ public:
     vec4  normal;
     vec3  color;
     float emission;
+    int type; // 0 = diffuse, 1 = mirror
 
     // Use uniform color
-	Triangle( vec4 v0, vec4 v1, vec4 v2, vec3 color, float emission )
-        : v0(v0), v1(v1), v2(v2), color(color), emission(emission) {
+	Triangle( vec4 v0, vec4 v1, vec4 v2, vec3 color, float emission, int type )
+        : v0(v0), v1(v1), v2(v2), color(color), emission(emission), type(type) {
         ComputeNormal();
 	}
 
@@ -78,34 +79,34 @@ void LoadTestModel( std::vector<Triangle>& triangles ) {
     vec4 P((L+lightWidth)/2, L, (L+lightLength)/2, 1);
 
     // Floor:
-    triangles.push_back( Triangle( C, B, A, white, 0 ) );
-    triangles.push_back( Triangle( C, D, B, white, 0 ) );
+    triangles.push_back( Triangle( C, B, A, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( C, D, B, white, 0.0f, 0 ) );
 
     // Left wall
-    triangles.push_back( Triangle( A, E, C, red, 0 ) );
-    triangles.push_back( Triangle( C, E, G, red, 0 ) );
+    triangles.push_back( Triangle( A, E, C, red, 0.0f, 0 ) );
+    triangles.push_back( Triangle( C, E, G, red, 0.0f, 0 ) );
 
     // Right wall
-    triangles.push_back( Triangle( F, B, D, green, 0 ) );
-    triangles.push_back( Triangle( H, F, D, green, 0 ) );
+    triangles.push_back( Triangle( F, B, D, green, 0.0f, 0 ) );
+    triangles.push_back( Triangle( H, F, D, green, 0.0f, 0 ) );
 
     // Ceiling
-    triangles.push_back( Triangle( P, O, G, white, 0 ) );
-    triangles.push_back( Triangle( G, O, H, white, 0 ) );
-    triangles.push_back( Triangle( H, O, N, white, 0 ) );
-    triangles.push_back( Triangle( F, H, N, white, 0 ) );
-    triangles.push_back( Triangle( F, N, M, white, 0 ) );
-    triangles.push_back( Triangle( M, E, F, white, 0 ) );
-    triangles.push_back( Triangle( P, E, M, white, 0 ) );
-    triangles.push_back( Triangle( G, E, P, white, 0 ) );
+    triangles.push_back( Triangle( P, O, G, white, 6.0f, 0 ) );
+    triangles.push_back( Triangle( G, O, H, white, 6.0f, 0 ) );
+    triangles.push_back( Triangle( H, O, N, white, 6.0f, 0 ) );
+    triangles.push_back( Triangle( F, H, N, white, 6.0f, 0 ) );
+    triangles.push_back( Triangle( F, N, M, white, 6.0f, 0 ) );
+    triangles.push_back( Triangle( M, E, F, white, 6.0f, 0 ) );
+    triangles.push_back( Triangle( P, E, M, white, 6.0f, 0 ) );
+    triangles.push_back( Triangle( G, E, P, white, 6.0f, 0 ) );
 
     // Ceiling LIGHT
-    triangles.push_back( Triangle( M, N, O, white, 180.0f ) );
-    triangles.push_back( Triangle( M, O, P, white, 180.0f ) );
+    triangles.push_back( Triangle( M, N, O, white, 6.0f, 0 ) );
+    triangles.push_back( Triangle( M, O, P, white, 6.0f, 0 ) );
 
     // Back wall
-    triangles.push_back( Triangle( G, D, C, white, 0 ) );
-    triangles.push_back( Triangle( G, H, D, white, 0 ) );
+    triangles.push_back( Triangle( G, D, C, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( G, H, D, white, 0.0f, 0 ) );
 
     // ---------------------------------------------------------------------------
     // Short block
@@ -121,24 +122,24 @@ void LoadTestModel( std::vector<Triangle>& triangles ) {
     H = vec4( 82,165,225,1);
 
     // Front
-    triangles.push_back( Triangle( E, B, A, white, 0 ) );
-    triangles.push_back( Triangle( E, F, B, white, 0 ) );
+    triangles.push_back( Triangle( E, B, A, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( E, F, B, white, 0.0f, 0 ) );
 
     // Right
-    triangles.push_back( Triangle( F, D, B, white, 0 ) );
-    triangles.push_back( Triangle( F, H, D, white, 0 ) );
+    triangles.push_back( Triangle( F, D, B, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( F, H, D, white, 0.0f, 0 ) );
 
     // BACK
-    triangles.push_back( Triangle( H, C, D, white, 0 ) );
-    triangles.push_back( Triangle( H, G, C, white, 0 ) );
+    triangles.push_back( Triangle( H, C, D, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( H, G, C, white, 0.0f, 0 ) );
 
     // LEFT
-    triangles.push_back( Triangle( G, E, C, white, 0 ) );
-    triangles.push_back( Triangle( E, A, C, white, 0 ) );
+    triangles.push_back( Triangle( G, E, C, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( E, A, C, white, 0.0f, 0 ) );
 
     // TOP
-    triangles.push_back( Triangle( G, F, E, white, 0 ) );
-    triangles.push_back( Triangle( G, H, F, white, 0 ) );
+    triangles.push_back( Triangle( G, F, E, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( G, H, F, white, 0.0f, 0 ) );
 
     // ---------------------------------------------------------------------------
     // Tall block
@@ -154,24 +155,24 @@ void LoadTestModel( std::vector<Triangle>& triangles ) {
     H = vec4(314,330,456,1);
 
     // Front
-    triangles.push_back( Triangle( E, B, A, white, 0 ) );
-    triangles.push_back( Triangle( E, F, B, white, 0 ) );
+    triangles.push_back( Triangle( E, B, A, white, 0.0f, 1 ) );
+    triangles.push_back( Triangle( E, F, B, white, 0.0f, 1 ) );
 
     // Right
-    triangles.push_back( Triangle( F, D, B, white, 0 ) );
-    triangles.push_back( Triangle( F, H, D, white, 0 ) );
+    triangles.push_back( Triangle( F, D, B, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( F, H, D, white, 0.0f, 0 ) );
 
     // BACK
-    triangles.push_back( Triangle( H, C, D, white, 0 ) );
-    triangles.push_back( Triangle( H, G, C, white, 0 ) );
+    triangles.push_back( Triangle( H, C, D, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( H, G, C, white, 0.0f, 0 ) );
 
     // LEFT
-    triangles.push_back( Triangle( G, E, C, white, 0 ) );
-    triangles.push_back( Triangle( E, A, C, white, 0 ) );
+    triangles.push_back( Triangle( G, E, C, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( E, A, C, white, 0.0f, 0 ) );
 
     // TOP
-    triangles.push_back( Triangle( G, F, E, white, 0 ) );
-    triangles.push_back( Triangle( G, H, F, white, 0 ) );
+    triangles.push_back( Triangle( G, F, E, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( G, H, F, white, 0.0f, 0 ) );
 
 
     // ----------------------------------------------
