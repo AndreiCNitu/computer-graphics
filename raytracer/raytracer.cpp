@@ -29,10 +29,10 @@ struct Camera {
     float rotationSpeed;
 };
 
-#define SCREEN_WIDTH  1080
-#define SCREEN_HEIGHT 1080
+#define SCREEN_WIDTH  1600
+#define SCREEN_HEIGHT 1600
 #define FULLSCREEN_MODE true
-#define SHADOW_BIAS 0.00064f
+#define SHADOW_BIAS 0.000085f
 #define MIN_DEPTH 5
 #define RR_PROB 0.95f
 #define MAX_SAMPLES 1
@@ -60,8 +60,11 @@ bool ClosestIntersection(
 void RotateX( mat4& rotation, float rad );
 void RotateY( mat4& rotation, float rad );
 void InitialiseParams(); // Initialise camera and light
-void filmic(float &x);
-void hable(float &x);
+
+// tone mapping methods:
+vec3 reinhard(vec3 color);
+vec3 filmic(vec3 color);
+vec3 hable(vec3 color);
 
 default_random_engine engine(std::random_device{}());
 uniform_real_distribution<float> distribution(0.0f, 1.0f);
@@ -143,10 +146,7 @@ void Draw(screen* screen) {
 
             vec3 pixelColor = castRay(camera.position, primaryRay, 0);
             image[col][row] += pixelColor;
-            vec3 tonedColor = image[col][row] / (float) iterations;
-            filmic(tonedColor.x);
-            filmic(tonedColor.y);
-            filmic(tonedColor.z);
+            vec3 tonedColor = filmic(image[col][row] / (float) iterations);
             PutPixelSDL(screen, col, row, tonedColor);
         }
     }
@@ -262,13 +262,14 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
     Triangle surface = triangles[primaryIntersect.triangleIndex];
 
     // Sample from the hemisphere
-    vec3 indirectLight = vec3(0,0,0);
     vec3 N, Nt, Nb;
     N = (vec3) surface.normal;
     createCoordinateSystem(N, Nt, Nb);
 
     vec3 pointColor;
+    vec3 indirectLight = vec3(0,0,0);
     vec3 emmittedLight = surface.emission * vec3(1, 1, 1);
+    vec4 bouncePoint = primaryIntersect.position + surface.normal * SHADOW_BIAS;
     if (surface.type == 0) {
         int samples = max( (int) (MAX_SAMPLES / pow(DROP_FACTOR, depth)), 1 );
         float pdf = 1 / (2 * M_PI);
@@ -283,23 +284,22 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
                  sample.x * Nb.z + sample.y * N.z + sample.z * Nt.z,
                  1.0f);
 
-            vec4 bouncePoint = primaryIntersect.position + sampleWorld * SHADOW_BIAS;
             indirectLight += t * castRay(bouncePoint, sampleWorld, depth + 1);
         }
         // divide by number of samples, the PDF and the russian roulette factor
         indirectLight /= samples * pdf * rr_prob;
-        pointColor = (emmittedLight + indirectLight) * surface.color;
+        pointColor = ((emmittedLight + indirectLight) * surface.color) / (float) M_PI;
     } else if (surface.type == 1) {
         vec3 reflectedRay3 = reflect((vec3) dir, (vec3) surface.normal);
         vec4 reflectedRay  = vec4(reflectedRay3.x,
                                   reflectedRay3.y,
                                   reflectedRay3.z,
                                   1.0f);
-        vec4 bouncePoint = primaryIntersect.position + surface.normal * SHADOW_BIAS;
         indirectLight += castRay(bouncePoint, reflectedRay, depth + 1);
-        pointColor = emmittedLight + indirectLight;
+        indirectLight /= rr_prob;
+        pointColor = indirectLight * surface.color;
     }
-    return pointColor / (float) M_PI;
+    return pointColor;
 }
 
 void createCoordinateSystem(const vec3 &N, vec3 &Nt, vec3 &Nb)  {
@@ -400,7 +400,29 @@ void RotateY( mat4& rotation, float rad ) {
     rotation = R * rotation;
 }
 
-void hable(float &x) {
+vec3 reinhard(vec3 color) {
+    vec3 tonedColor;
+    tonedColor.x = color.x / (1.0f + color.x);
+    tonedColor.y = color.y / (1.0f + color.y);
+    tonedColor.z = color.z / (1.0f + color.z);
+    return tonedColor;
+}
+
+vec3 filmic(vec3 color) {
+    float A = 2.51f;
+    float B = 0.03f;
+    float C = 2.43f;
+    float D = 0.59f;
+    float E = 0.14f;
+
+    vec3 tonedColor;
+    tonedColor.x = ((color.x*(A*color.x+B))/(color.x*(C*color.x+D)+E));
+    tonedColor.y = ((color.y*(A*color.y+B))/(color.y*(C*color.y+D)+E));
+    tonedColor.z = ((color.z*(A*color.z+B))/(color.z*(C*color.z+D)+E));
+    return tonedColor;
+}
+
+vec3 hable(vec3 color) {
     float A = 0.15;
     float B = 0.50;
     float C = 0.10;
@@ -408,14 +430,12 @@ void hable(float &x) {
     float E = 0.02;
     float F = 0.30;
 
-    x = ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F;
-}
-
-void filmic(float &x) {
-    float a = 2.51f;
-    float b = 0.03f;
-    float c = 2.43f;
-    float d = 0.59f;
-    float e = 0.14f;
-    x = ((x*(a*x+b))/(x*(c*x+d)+e));
+    vec3 tonedColor;
+    tonedColor.x = ((color.x*(A*color.x+C*B)+D*E)/(color.x*(A*color.x+B)+D*F))-E/F;
+    tonedColor.y = ((color.y*(A*color.y+C*B)+D*E)/(color.y*(A*color.y+B)+D*F))-E/F;
+    tonedColor.z = ((color.z*(A*color.z+C*B)+D*E)/(color.z*(A*color.z+B)+D*F))-E/F;
+    tonedColor.x = pow(tonedColor.x, 1.0f / 2.2f);
+    tonedColor.y = pow(tonedColor.y, 1.0f / 2.2f);
+    tonedColor.z = pow(tonedColor.z, 1.0f / 2.2f);
+    return tonedColor;
 }

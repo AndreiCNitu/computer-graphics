@@ -10,6 +10,9 @@ using glm::vec2;
 using glm::vec3;
 using glm::vec4;
 
+#define DIFFUSE 0
+#define MIRROR  1
+
 // Used to describe a triangular surface:
 class Triangle {
 public:
@@ -91,18 +94,18 @@ void LoadTestModel( std::vector<Triangle>& triangles ) {
     triangles.push_back( Triangle( H, F, D, green, 0.0f, 0 ) );
 
     // Ceiling
-    triangles.push_back( Triangle( P, O, G, white, 6.0f, 0 ) );
-    triangles.push_back( Triangle( G, O, H, white, 6.0f, 0 ) );
-    triangles.push_back( Triangle( H, O, N, white, 6.0f, 0 ) );
-    triangles.push_back( Triangle( F, H, N, white, 6.0f, 0 ) );
-    triangles.push_back( Triangle( F, N, M, white, 6.0f, 0 ) );
-    triangles.push_back( Triangle( M, E, F, white, 6.0f, 0 ) );
-    triangles.push_back( Triangle( P, E, M, white, 6.0f, 0 ) );
-    triangles.push_back( Triangle( G, E, P, white, 6.0f, 0 ) );
+    triangles.push_back( Triangle( P, O, G, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( G, O, H, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( H, O, N, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( F, H, N, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( F, N, M, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( M, E, F, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( P, E, M, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( G, E, P, white, 0.0f, 0 ) );
 
     // Ceiling LIGHT
-    triangles.push_back( Triangle( M, N, O, white, 6.0f, 0 ) );
-    triangles.push_back( Triangle( M, O, P, white, 6.0f, 0 ) );
+    triangles.push_back( Triangle( M, N, O, white, 180.0f, 0 ) );
+    triangles.push_back( Triangle( M, O, P, white, 180.0f, 0 ) );
 
     // Back wall
     triangles.push_back( Triangle( G, D, C, white, 0.0f, 0 ) );
@@ -155,8 +158,8 @@ void LoadTestModel( std::vector<Triangle>& triangles ) {
     H = vec4(314,330,456,1);
 
     // Front
-    triangles.push_back( Triangle( E, B, A, white, 0.0f, 1 ) );
-    triangles.push_back( Triangle( E, F, B, white, 0.0f, 1 ) );
+    triangles.push_back( Triangle( E, B, A, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( E, F, B, white, 0.0f, 0 ) );
 
     // Right
     triangles.push_back( Triangle( F, D, B, white, 0.0f, 0 ) );
