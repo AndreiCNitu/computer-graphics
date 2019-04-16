@@ -55,6 +55,7 @@ void LoadTestModel( std::vector<Triangle>& triangles ) {
     vec3 blue(   0.15f, 0.15f, 0.75f );
     vec3 purple( 0.75f, 0.15f, 0.75f );
     vec3 white(  0.75f, 0.75f, 0.75f );
+    vec3 silver( 0.95f, 0.93f, 0.88f );
 
     triangles.clear();
     triangles.reserve( 5*2*3 );
@@ -158,8 +159,8 @@ void LoadTestModel( std::vector<Triangle>& triangles ) {
     H = vec4(314,330,456,1);
 
     // Front
-    triangles.push_back( Triangle( E, B, A, white, 0.0f, 0 ) );
-    triangles.push_back( Triangle( E, F, B, white, 0.0f, 0 ) );
+    triangles.push_back( Triangle( E, B, A, silver, 0.0f, 1 ) );
+    triangles.push_back( Triangle( E, F, B, silver, 0.0f, 1 ) );
 
     // Right
     triangles.push_back( Triangle( F, D, B, white, 0.0f, 0 ) );
