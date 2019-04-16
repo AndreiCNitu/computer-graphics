@@ -29,17 +29,18 @@ struct Camera {
     float rotationSpeed;
 };
 
-#define SCREEN_WIDTH  1600
-#define SCREEN_HEIGHT 1600
-#define FULLSCREEN_MODE true
+#define SCREEN_WIDTH  720
+#define SCREEN_HEIGHT 720
+#define FULLSCREEN_MODE false
 #define SHADOW_BIAS 0.000085f
-#define MIN_DEPTH 5
-#define RR_PROB 0.95f
+#define MIN_DEPTH 4
+#define RR_PROB 0.18f
 #define MAX_SAMPLES 1
 #define DROP_FACTOR 1
 
 vector<Triangle> triangles;
 Camera camera;
+int max_depth = 0;
 
 vec3 image[SCREEN_WIDTH][SCREEN_HEIGHT];
 int iterations = 0;
@@ -162,6 +163,7 @@ bool Update() {
     cout << "-------------------------------" << endl;
     cout << " Iterations:            " << iterations << endl;
     cout << " Samples / n-th bounce: " << MAX_SAMPLES << " / (" << DROP_FACTOR << " ^ d)" << endl;
+    cout << " Max Depth:             " << max_depth << endl;
     cout << " Frame render time:     " << dt << " ms" << endl;
     cout << "-------------------------------" << endl;
 
@@ -245,6 +247,11 @@ void InitialiseParams() {
 }
 
 vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
+    if (depth > max_depth) {
+        max_depth = depth;
+    }
+
+    // Russian roulette
     float rr_prob = 1.0f;
     if (depth > MIN_DEPTH) {
         rr_prob = RR_PROB;
@@ -254,7 +261,7 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
         }
     }
 
-    // compute intersection
+    // Compute intersection
     Intersection primaryIntersect;
     if (!ClosestIntersection(orig, dir, triangles, primaryIntersect)) {
         return vec3(0,0,0);
@@ -266,12 +273,12 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
     N = (vec3) surface.normal;
     createCoordinateSystem(N, Nt, Nb);
 
-    vec3 pointColor;
-    vec3 indirectLight = vec3(0,0,0);
     vec3 emmittedLight = surface.emission * vec3(1, 1, 1);
     vec4 bouncePoint = primaryIntersect.position + surface.normal * SHADOW_BIAS;
-    if (surface.type == 0) {
-        int samples = max( (int) (MAX_SAMPLES / pow(DROP_FACTOR, depth)), 1 );
+
+    // Compute diffuse component
+    vec3 diffuseLight = vec3(0,0,0);
+    int samples = max( (int) (MAX_SAMPLES / pow(DROP_FACTOR, depth)), 1 );
         float pdf = 1 / (2 * M_PI);
         for (int i = 0; i < samples; ++i) {
             // create sample in world space
@@ -284,22 +291,24 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
                  sample.x * Nb.z + sample.y * N.z + sample.z * Nt.z,
                  1.0f);
 
-            indirectLight += t * castRay(bouncePoint, sampleWorld, depth + 1);
+            diffuseLight += t * castRay(bouncePoint, sampleWorld, depth + 1);
         }
         // divide by number of samples, the PDF and the russian roulette factor
-        indirectLight /= samples * pdf * rr_prob;
-        pointColor = ((emmittedLight + indirectLight) * surface.color) / (float) M_PI;
-    } else if (surface.type == 1) {
+        diffuseLight /= samples * pdf * rr_prob;
+
+        // Compute specular component
+        vec3 specularLight = vec3(0,0,0);
         vec3 reflectedRay3 = reflect((vec3) dir, (vec3) surface.normal);
         vec4 reflectedRay  = vec4(reflectedRay3.x,
                                   reflectedRay3.y,
                                   reflectedRay3.z,
                                   1.0f);
-        indirectLight += castRay(bouncePoint, reflectedRay, depth + 1);
-        indirectLight /= rr_prob;
-        pointColor = indirectLight * surface.color;
-    }
-    return pointColor;
+        specularLight = castRay(bouncePoint, reflectedRay, depth + 1);
+        specularLight /= rr_prob;
+
+        // Compute BRDF
+        return surface.specular * specularLight +
+               surface.diffuse * ((diffuseLight + emmittedLight) * surface.color / (float) M_PI );
 }
 
 void createCoordinateSystem(const vec3 &N, vec3 &Nt, vec3 &Nb)  {

@@ -111,9 +111,9 @@ bool LoadModel( vector<Triangle>& triangles, const char* filename ) {
                 uv[pos] = vertex;
             }
 
-            Triangle triangle = Triangle( v[2], v[1], v[0], COLOR, 0.0f, 0 );
-            // Triangle triangle = Triangle( v[2], v[1], v[0], uv[0], uv[1], uv[2] );
-            triangles.push_back(triangle);
+            // Triangle triangle = Triangle( v[2], v[1], v[0], COLOR, 0.0f, 0 );
+            // // Triangle triangle = Triangle( v[2], v[1], v[0], uv[0], uv[1], uv[2] );
+            // triangles.push_back(triangle);
         } else {
             n++;
         }
@@ -211,88 +211,88 @@ void ScaleTriangles( vector<Triangle>& triangles ) {
 
 bool LoadCornellBox( vector<Triangle>& triangles ) {
 
-    // Defines colors:
-    vec3 red(    0.75f, 0.15f, 0.15f );
-    vec3 yellow( 0.75f, 0.75f, 0.15f );
-    vec3 green(  0.15f, 0.75f, 0.15f );
-    vec3 cyan(   0.15f, 0.75f, 0.75f );
-    vec3 blue(   0.15f, 0.15f, 0.75f );
-    vec3 purple( 0.75f, 0.15f, 0.75f );
-    vec3 white(  0.75f, 0.75f, 0.75f );
-
-    triangles.clear();
-    triangles.reserve( 5*2*3 );
-
-    /// ---------------------------------------------------------------------------
-    // Room
-
-    float L = 555;			// Length of Cornell Box side.
-
-    vec4 A(L,0,0,1);
-    vec4 B(0,0,0,1);
-    vec4 C(L,0,L,1);
-    vec4 D(0,0,L,1);
-
-    vec4 E(L,L,0,1);
-    vec4 F(0,L,0,1);
-    vec4 G(L,L,L,1);
-    vec4 H(0,L,L,1);
-
-    float lightLength = L/5;
-    float lightWidth  = L/4;
-    vec4 M((L+lightWidth)/2, L, (L-lightLength)/2, 1);
-    vec4 N((L-lightWidth)/2, L, (L-lightLength)/2, 1);
-    vec4 O((L-lightWidth)/2, L, (L+lightLength)/2, 1);
-    vec4 P((L+lightWidth)/2, L, (L+lightLength)/2, 1);
-
-    // Floor:
-    triangles.push_back( Triangle( C, B, A, white, 0.0f, 0 ) );
-    triangles.push_back( Triangle( C, D, B, white, 0.0f, 0 ) );
-
-    // Left wall
-    triangles.push_back( Triangle( A, E, C, red, 0.0f, 0 ) );
-    triangles.push_back( Triangle( C, E, G, red, 0.0f, 0 ) );
-
-    // Right wall
-    triangles.push_back( Triangle( F, B, D, green, 0.0f, 0 ) );
-    triangles.push_back( Triangle( H, F, D, green, 0.0f, 0 ) );
-
-    // Ceiling
-    triangles.push_back( Triangle( P, O, G, white, 8.0f, 0 ) );
-    triangles.push_back( Triangle( G, O, H, white, 8.0f, 0 ) );
-    triangles.push_back( Triangle( H, O, N, white, 8.0f, 0 ) );
-    triangles.push_back( Triangle( F, H, N, white, 8.0f, 0 ) );
-    triangles.push_back( Triangle( F, N, M, white, 8.0f, 0 ) );
-    triangles.push_back( Triangle( M, E, F, white, 8.0f, 0 ) );
-    triangles.push_back( Triangle( P, E, M, white, 8.0f, 0 ) );
-    triangles.push_back( Triangle( G, E, P, white, 8.0f, 0 ) );
-
-    // Ceiling LIGHT
-    triangles.push_back( Triangle( M, N, O, white, 8.0f, 0 ) );
-    triangles.push_back( Triangle( M, O, P, white, 8.0f, 0 ) );
-
-    // Back wall
-    triangles.push_back( Triangle( G, D, C, white, 0.0f, 0 ) );
-    triangles.push_back( Triangle( G, H, D, white, 0.0f, 0 ) );
-
-    // ----------------------------------------------
-    // Scale to the volume [-1,1]^3
-
-	for( size_t i=0; i<triangles.size(); ++i ) {
-    	triangles[i].v0 *= 2/L;
-    	triangles[i].v1 *= 2/L;
-    	triangles[i].v2 *= 2/L;
-
-    	triangles[i].v0 -= vec4(1,1,1,1);
-    	triangles[i].v1 -= vec4(1,1,1,1);
-    	triangles[i].v2 -= vec4(1,1,1,1);
-
-    	triangles[i].v0.w = 1.0;
-    	triangles[i].v1.w = 1.0;
-    	triangles[i].v2.w = 1.0;
-
-    	triangles[i].ComputeNormal();
-	}
+    // // Defines colors:
+    // vec3 red(    0.75f, 0.15f, 0.15f );
+    // vec3 yellow( 0.75f, 0.75f, 0.15f );
+    // vec3 green(  0.15f, 0.75f, 0.15f );
+    // vec3 cyan(   0.15f, 0.75f, 0.75f );
+    // vec3 blue(   0.15f, 0.15f, 0.75f );
+    // vec3 purple( 0.75f, 0.15f, 0.75f );
+    // vec3 white(  0.75f, 0.75f, 0.75f );
+    //
+    // triangles.clear();
+    // triangles.reserve( 5*2*3 );
+    //
+    // /// ---------------------------------------------------------------------------
+    // // Room
+    //
+    // float L = 555;			// Length of Cornell Box side.
+    //
+    // vec4 A(L,0,0,1);
+    // vec4 B(0,0,0,1);
+    // vec4 C(L,0,L,1);
+    // vec4 D(0,0,L,1);
+    //
+    // vec4 E(L,L,0,1);
+    // vec4 F(0,L,0,1);
+    // vec4 G(L,L,L,1);
+    // vec4 H(0,L,L,1);
+    //
+    // float lightLength = L/5;
+    // float lightWidth  = L/4;
+    // vec4 M((L+lightWidth)/2, L, (L-lightLength)/2, 1);
+    // vec4 N((L-lightWidth)/2, L, (L-lightLength)/2, 1);
+    // vec4 O((L-lightWidth)/2, L, (L+lightLength)/2, 1);
+    // vec4 P((L+lightWidth)/2, L, (L+lightLength)/2, 1);
+    //
+    // // Floor:
+    // triangles.push_back( Triangle( C, B, A, white, 0.0f, 0 ) );
+    // triangles.push_back( Triangle( C, D, B, white, 0.0f, 0 ) );
+    //
+    // // Left wall
+    // triangles.push_back( Triangle( A, E, C, red, 0.0f, 0 ) );
+    // triangles.push_back( Triangle( C, E, G, red, 0.0f, 0 ) );
+    //
+    // // Right wall
+    // triangles.push_back( Triangle( F, B, D, green, 0.0f, 0 ) );
+    // triangles.push_back( Triangle( H, F, D, green, 0.0f, 0 ) );
+    //
+    // // Ceiling
+    // triangles.push_back( Triangle( P, O, G, white, 8.0f, 0 ) );
+    // triangles.push_back( Triangle( G, O, H, white, 8.0f, 0 ) );
+    // triangles.push_back( Triangle( H, O, N, white, 8.0f, 0 ) );
+    // triangles.push_back( Triangle( F, H, N, white, 8.0f, 0 ) );
+    // triangles.push_back( Triangle( F, N, M, white, 8.0f, 0 ) );
+    // triangles.push_back( Triangle( M, E, F, white, 8.0f, 0 ) );
+    // triangles.push_back( Triangle( P, E, M, white, 8.0f, 0 ) );
+    // triangles.push_back( Triangle( G, E, P, white, 8.0f, 0 ) );
+    //
+    // // Ceiling LIGHT
+    // triangles.push_back( Triangle( M, N, O, white, 8.0f, 0 ) );
+    // triangles.push_back( Triangle( M, O, P, white, 8.0f, 0 ) );
+    //
+    // // Back wall
+    // triangles.push_back( Triangle( G, D, C, white, 0.0f, 0 ) );
+    // triangles.push_back( Triangle( G, H, D, white, 0.0f, 0 ) );
+    //
+    // // ----------------------------------------------
+    // // Scale to the volume [-1,1]^3
+    //
+	// for( size_t i=0; i<triangles.size(); ++i ) {
+    // 	triangles[i].v0 *= 2/L;
+    // 	triangles[i].v1 *= 2/L;
+    // 	triangles[i].v2 *= 2/L;
+    //
+    // 	triangles[i].v0 -= vec4(1,1,1,1);
+    // 	triangles[i].v1 -= vec4(1,1,1,1);
+    // 	triangles[i].v2 -= vec4(1,1,1,1);
+    //
+    // 	triangles[i].v0.w = 1.0;
+    // 	triangles[i].v1.w = 1.0;
+    // 	triangles[i].v2.w = 1.0;
+    //
+    // 	triangles[i].ComputeNormal();
+	// }
 
     return true;
 }
