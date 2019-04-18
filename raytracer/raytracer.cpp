@@ -32,9 +32,9 @@ struct Camera {
 #define SCREEN_WIDTH  720
 #define SCREEN_HEIGHT 720
 #define FULLSCREEN_MODE false
-#define SHADOW_BIAS 0.000085f
+#define SHADOW_BIAS 0.00001f
 #define MIN_DEPTH 4
-#define RR_PROB 0.18f
+#define RR_PROB 0.20f
 #define MAX_SAMPLES 1
 #define DROP_FACTOR 1
 
@@ -268,47 +268,102 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
     }
     Triangle surface = triangles[primaryIntersect.triangleIndex];
 
-    // Sample from the hemisphere
-    vec3 N, Nt, Nb;
-    N = (vec3) surface.normal;
-    createCoordinateSystem(N, Nt, Nb);
+    vec3 shading;
+    if (surface.isTranparent) {
+        /* ----- Transparent BSDF ----- */
 
-    vec3 emmittedLight = surface.emission * vec3(1, 1, 1);
-    vec4 bouncePoint = primaryIntersect.position + surface.normal * SHADOW_BIAS;
+        vec3 I = (vec3) dir;
+        vec3 N = (vec3) surface.normal;
+        vec4 N_H = surface.normal;
+        // n2 -> n1, assume air
+        float n1 = 1.00029f;
+        float n2 = surface.IOR;
 
-    // Compute diffuse component
-    vec3 diffuseLight = vec3(0,0,0);
-    int samples = max( (int) (MAX_SAMPLES / pow(DROP_FACTOR, depth)), 1 );
-        float pdf = 1 / (2 * M_PI);
-        for (int i = 0; i < samples; ++i) {
-            // create sample in world space
-            float t = distribution(engine);
-            float p = distribution(engine);
-            vec3 sample = uniformSampleHemisphere(t, p);
-            vec4 sampleWorld = vec4(
-                 sample.x * Nb.x + sample.y * N.x + sample.z * Nt.x,
-                 sample.x * Nb.y + sample.y * N.y + sample.z * Nt.y,
-                 sample.x * Nb.z + sample.y * N.z + sample.z * Nt.z,
-                 1.0f);
-
-            diffuseLight += t * castRay(bouncePoint, sampleWorld, depth + 1);
+        // check if ray is inside the object
+        if (dot(N, I) > 0) {
+            N = -N;
+            N_H = -N_H;
+            swap(n1, n2);
         }
-        // divide by number of samples, the PDF and the russian roulette factor
-        diffuseLight /= samples * pdf * rr_prob;
 
+        // Schlick's aproximation
+        float R0 = (n1 - n2) / (n1 + n2);
+              R0 = R0 * R0;
+        float cosTheta1 = -dot(N, I);
+        float Rprob = R0 + (1.0f - R0) * pow(1 - cosTheta1, 5);
+        float eta = n1/n2;
+        float k = 1.0f - eta * eta * (1.0f - cosTheta1 * cosTheta1);
+        float rnd = distribution(engine);
+        if (k >= 0 && rnd > Rprob) {
+            // Refraction
+            vec3 refractedRay3 = refract(normalize(I), normalize(N), eta);
+            vec4 refractedRay  = vec4(refractedRay3.x,
+                                      refractedRay3.y,
+                                      refractedRay3.z,
+                                      1.0f);
+            vec4 refractPoint = primaryIntersect.position - N_H * SHADOW_BIAS;
+            shading = castRay(refractPoint, refractedRay, depth + 1);
+        } else {
+            // Reflection
+            vec3 reflectedRay3 = reflect(normalize(I), normalize(N));
+            vec4 reflectedRay  = vec4(reflectedRay3.x,
+                                      reflectedRay3.y,
+                                      reflectedRay3.z,
+                                      1.0f);
+            vec4 reflectPoint = primaryIntersect.position + N_H * SHADOW_BIAS;
+            shading = castRay(reflectPoint, reflectedRay, depth + 1);
+        }
+        // shading /= rr_prob;
+    } else {
+        /* ----- Micro-facet BRDF ----- */
+
+        // Sample from the hemisphere
+        vec3 N, Nt, Nb;
+        N = (vec3) surface.normal;
+        createCoordinateSystem(N, Nt, Nb);
+
+        vec3 emmittedLight = surface.emission * vec3(1, 1, 1);
+        vec4 bouncePoint = primaryIntersect.position + surface.normal * SHADOW_BIAS;
+
+        // Compute diffuse component
+        vec3 diffuseLight = vec3(0,0,0);
+        if (surface.diffusion != 0.0f) {
+            int samples = max( (int) (MAX_SAMPLES / pow(DROP_FACTOR, depth)), 1 );
+                float pdf = 1 / (2 * M_PI);
+                for (int i = 0; i < samples; ++i) {
+                    // create sample in world space
+                    float t = distribution(engine);
+                    float p = distribution(engine);
+                    vec3 sample = uniformSampleHemisphere(t, p);
+                    vec4 sampleWorld = vec4(
+                         sample.x * Nb.x + sample.y * N.x + sample.z * Nt.x,
+                         sample.x * Nb.y + sample.y * N.y + sample.z * Nt.y,
+                         sample.x * Nb.z + sample.y * N.z + sample.z * Nt.z,
+                         1.0f);
+
+                    diffuseLight += t * castRay(bouncePoint, sampleWorld, depth + 1);
+                }
+            // divide by number of samples, the PDF and the russian roulette factor
+            diffuseLight /= samples * pdf * rr_prob;
+        }
         // Compute specular component
         vec3 specularLight = vec3(0,0,0);
-        vec3 reflectedRay3 = reflect((vec3) dir, (vec3) surface.normal);
-        vec4 reflectedRay  = vec4(reflectedRay3.x,
-                                  reflectedRay3.y,
-                                  reflectedRay3.z,
-                                  1.0f);
-        specularLight = castRay(bouncePoint, reflectedRay, depth + 1);
-        specularLight /= rr_prob;
+        if (surface.reflectivity != 0.0f) {
+            vec3 reflectedRay3 = reflect((vec3) dir, (vec3) surface.normal);
+            vec4 reflectedRay  = vec4(reflectedRay3.x,
+                                      reflectedRay3.y,
+                                      reflectedRay3.z,
+                                      1.0f);
+            specularLight = castRay(bouncePoint, reflectedRay, depth + 1);
+            specularLight /= rr_prob;
+        }
 
         // Compute BRDF
-        return surface.specular * specularLight +
-               surface.diffuse * ((diffuseLight + emmittedLight) * surface.color / (float) M_PI );
+        shading = surface.reflectivity * specularLight +
+                  surface.diffusion * ((diffuseLight + emmittedLight) * surface.color / (float) M_PI );
+    }
+
+    return shading;
 }
 
 void createCoordinateSystem(const vec3 &N, vec3 &Nt, vec3 &Nb)  {
