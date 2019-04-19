@@ -29,12 +29,12 @@ struct Camera {
     float rotationSpeed;
 };
 
-#define SCREEN_WIDTH  720
-#define SCREEN_HEIGHT 720
-#define FULLSCREEN_MODE false
+#define SCREEN_WIDTH  1600
+#define SCREEN_HEIGHT 1600
+#define FULLSCREEN_MODE true
 #define SHADOW_BIAS 0.00001f
-#define MIN_DEPTH 4
-#define RR_PROB 0.20f
+#define MIN_DEPTH 10
+#define RR_PROB 0.65f
 #define MAX_SAMPLES 1
 #define DROP_FACTOR 1
 
@@ -47,7 +47,7 @@ int iterations = 0;
 
 bool Update();
 void Draw(screen* screen);
-vec3 castRay(vec4 &orig, vec4 &dir, int depth);
+vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, int depth);
 bool TriangleIntersection(
       vec4 start,
       vec4 dir,
@@ -144,8 +144,8 @@ void Draw(screen* screen) {
             vec4 primaryRay = camera.rotation * vec4(col - SCREEN_WIDTH  / 2.0f + col_offset,
                                                      row - SCREEN_HEIGHT / 2.0f + row_offset,
                                                      camera.focalLength, 0.0);
-
-            vec3 pixelColor = castRay(camera.position, primaryRay, 0);
+            float cartita; // Cârtiță
+            vec3 pixelColor = castRay(false, cartita, camera.position, primaryRay, 0);
             image[col][row] += pixelColor;
             vec3 tonedColor = filmic(image[col][row] / (float) iterations);
             PutPixelSDL(screen, col, row, tonedColor);
@@ -246,7 +246,7 @@ void InitialiseParams() {
     camera.rotationSpeed = 0.1f;
 }
 
-vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
+vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, int depth)  {
     if (depth > max_depth) {
         max_depth = depth;
     }
@@ -267,6 +267,7 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
         return vec3(0,0,0);
     }
     Triangle surface = triangles[primaryIntersect.triangleIndex];
+    float rnd;
 
     vec3 shading;
     if (surface.isTranparent) {
@@ -276,14 +277,16 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
         vec3 N = (vec3) surface.normal;
         vec4 N_H = surface.normal;
         // n2 -> n1, assume air
-        float n1 = 1.00029f;
+        float n1 = 1.000277f;
         float n2 = surface.IOR;
+        bool enteringObject = true;
 
-        // check if ray is inside the object
+        // check if the ray is inside the object
         if (dot(N, I) > 0) {
             N = -N;
             N_H = -N_H;
             swap(n1, n2);
+            enteringObject = false;
         }
 
         // Schlick's aproximation
@@ -293,7 +296,7 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
         float Rprob = R0 + (1.0f - R0) * pow(1 - cosTheta1, 5);
         float eta = n1/n2;
         float k = 1.0f - eta * eta * (1.0f - cosTheta1 * cosTheta1);
-        float rnd = distribution(engine);
+        rnd = distribution(engine);
         if (k >= 0 && rnd > Rprob) {
             // Refraction
             vec3 refractedRay3 = refract(normalize(I), normalize(N), eta);
@@ -302,7 +305,16 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
                                       refractedRay3.z,
                                       1.0f);
             vec4 refractPoint = primaryIntersect.position - N_H * SHADOW_BIAS;
-            shading = castRay(refractPoint, refractedRay, depth + 1);
+            shading = castRay(enteringObject, absorbDistance, refractPoint, refractedRay, depth + 1);
+            if (enteringObject) {
+                // Beer's Law
+                vec3 absorbColor = exp((-surface.sigma) * absorbDistance);
+                shading *= absorbColor;
+                absorbDistance = 0.0f;
+            } else {
+                // Ray is inside object
+                absorbDistance += distance((vec3) orig, (vec3) refractPoint);
+            }
         } else {
             // Reflection
             vec3 reflectedRay3 = reflect(normalize(I), normalize(N));
@@ -311,9 +323,13 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
                                       reflectedRay3.z,
                                       1.0f);
             vec4 reflectPoint = primaryIntersect.position + N_H * SHADOW_BIAS;
-            shading = castRay(reflectPoint, reflectedRay, depth + 1);
+            shading = castRay(!enteringObject, absorbDistance, reflectPoint, reflectedRay, depth + 1);
+            if (!enteringObject) {
+                // Ray is inside object
+                absorbDistance += distance((vec3) orig, (vec3) reflectPoint);
+            }
         }
-        // shading /= rr_prob;
+        shading /= rr_prob;
     } else {
         /* ----- Micro-facet BRDF ----- */
 
@@ -324,10 +340,11 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
 
         vec3 emmittedLight = surface.emission * vec3(1, 1, 1);
         vec4 bouncePoint = primaryIntersect.position + surface.normal * SHADOW_BIAS;
+        rnd = distribution(engine);
 
-        // Compute diffuse component
-        vec3 diffuseLight = vec3(0,0,0);
-        if (surface.diffusion != 0.0f) {
+        vec3 indirectLight = vec3(0,0,0);
+        if (rnd > surface.reflectivity) {
+            // Spawn a diffuse ray
             int samples = max( (int) (MAX_SAMPLES / pow(DROP_FACTOR, depth)), 1 );
                 float pdf = 1 / (2 * M_PI);
                 for (int i = 0; i < samples; ++i) {
@@ -341,26 +358,26 @@ vec3 castRay(vec4 &orig, vec4 &dir, int depth)  {
                          sample.x * Nb.z + sample.y * N.z + sample.z * Nt.z,
                          1.0f);
 
-                    diffuseLight += t * castRay(bouncePoint, sampleWorld, depth + 1);
+                    indirectLight += t * castRay(insideObject, absorbDistance, bouncePoint, sampleWorld, depth + 1);
                 }
             // divide by number of samples, the PDF and the russian roulette factor
-            diffuseLight /= samples * pdf * rr_prob;
-        }
-        // Compute specular component
-        vec3 specularLight = vec3(0,0,0);
-        if (surface.reflectivity != 0.0f) {
-            vec3 reflectedRay3 = reflect((vec3) dir, (vec3) surface.normal);
-            vec4 reflectedRay  = vec4(reflectedRay3.x,
-                                      reflectedRay3.y,
-                                      reflectedRay3.z,
-                                      1.0f);
-            specularLight = castRay(bouncePoint, reflectedRay, depth + 1);
-            specularLight /= rr_prob;
+            indirectLight /= samples * pdf * rr_prob;
+            shading = (indirectLight + emmittedLight) * surface.color / (float) M_PI;
+        } else {
+            // Spawn a specular ray
+                vec3 reflectedRay3 = reflect((vec3) dir, (vec3) surface.normal);
+                vec4 reflectedRay  = vec4(reflectedRay3.x,
+                                          reflectedRay3.y,
+                                          reflectedRay3.z,
+                                          1.0f);
+                indirectLight = castRay(insideObject, absorbDistance, bouncePoint, reflectedRay, depth + 1);
+                indirectLight /= rr_prob;
+                shading = indirectLight;
         }
 
-        // Compute BRDF
-        shading = surface.reflectivity * specularLight +
-                  surface.diffusion * ((diffuseLight + emmittedLight) * surface.color / (float) M_PI );
+        absorbDistance = (insideObject) ?
+                         (absorbDistance + distance((vec3) orig, (vec3) bouncePoint)) :
+                          0.0f;
     }
 
     return shading;
