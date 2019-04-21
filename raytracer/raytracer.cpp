@@ -19,6 +19,7 @@ struct Intersection {
     vec4 position;
     float distance;
     int triangleIndex;
+    int sphereIndex;
 };
 
 struct Camera {
@@ -33,12 +34,13 @@ struct Camera {
 #define SCREEN_HEIGHT 1600
 #define FULLSCREEN_MODE true
 #define SHADOW_BIAS 0.00001f
-#define MIN_DEPTH 10
-#define RR_PROB 0.65f
+#define MIN_DEPTH 20
+#define RR_PROB 0.45f
 #define MAX_SAMPLES 1
 #define DROP_FACTOR 1
 
 vector<Triangle> triangles;
+vector<Sphere> spheres;
 Camera camera;
 int max_depth = 0;
 
@@ -53,11 +55,19 @@ bool TriangleIntersection(
       vec4 dir,
       Triangle triangle,
       Intersection& intersection );
+bool SphereIntersection(
+      vec4 start,
+      vec4 dir,
+      Sphere sphere,
+      Intersection& intersection );
 bool ClosestIntersection(
       vec4 start,
       vec4 dir,
       const vector<Triangle>& triangles,
+      const vector<Sphere>& spheres,
       Intersection& closestIntersection );
+
+bool solveQuadratic(const float &a, const float &b, const float &c, float &x0, float &x1);
 void RotateX( mat4& rotation, float rad );
 void RotateY( mat4& rotation, float rad );
 void InitialiseParams(); // Initialise camera and light
@@ -80,7 +90,7 @@ int main( int argc, char* argv[] ) {
         exit(1);
     } else if (argc == 3 && ( strcmp("--cornell-box", argv[2]) == 0 ) ||
                argc == 1) {
-        LoadTestModel( triangles );
+        LoadTestModel( triangles, spheres );
         cout << "Cornell box test model loaded successfully." << endl;
     } else if (argc == 4 && strcmp("--load",          argv[2]) == 0 ) {
         if (LoadModel( triangles, argv[3] )) {
@@ -263,28 +273,60 @@ vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, in
 
     // Compute intersection
     Intersection primaryIntersect;
-    if (!ClosestIntersection(orig, dir, triangles, primaryIntersect)) {
+    if (!ClosestIntersection(orig, dir, triangles, spheres, primaryIntersect)) {
         return vec3(0,0,0);
     }
-    Triangle surface = triangles[primaryIntersect.triangleIndex];
+    // Surface properties
+    vec4  normalH;
+    vec3  normal;
+    int   type;
+    float ior;
+    vec3  sigma;
+    float emission;
+    float reflectivity;
+    vec3  surfaceColor;
+
+    if (primaryIntersect.triangleIndex > -1) {
+        Triangle surface = triangles[primaryIntersect.triangleIndex];
+        normalH      = surface.normal;
+        normal       = (vec3) normalH;
+        type         = surface.isTranparent;
+        ior          = surface.IOR;
+        sigma        = surface.sigma;
+        emission     = surface.emission;
+        reflectivity = surface.reflectivity;
+        surfaceColor = surface.color;
+    } else if (primaryIntersect.sphereIndex > -1) {
+        Sphere surface = spheres[primaryIntersect.sphereIndex];
+        normal  = (vec3) (primaryIntersect.position - surface.center);
+        normal  = normalize(normal);
+        normalH = vec4(normal.x, normal.y, normal.z, 1.0f);
+        type         = surface.isTranparent;
+        ior          = surface.IOR;
+        sigma        = surface.sigma;
+        emission     = surface.emission;
+        reflectivity = surface.reflectivity;
+        surfaceColor = surface.color;
+    } else {
+        cout << "Invalid surface intersection index" << endl;
+        exit(1);
+    }
     float rnd;
 
     vec3 shading;
-    if (surface.isTranparent) {
+    if (type == TRANSPARENT) {
         /* ----- Transparent BSDF ----- */
 
         vec3 I = (vec3) dir;
-        vec3 N = (vec3) surface.normal;
-        vec4 N_H = surface.normal;
         // n2 -> n1, assume air
         float n1 = 1.000277f;
-        float n2 = surface.IOR;
+        float n2 = ior;
         bool enteringObject = true;
 
         // check if the ray is inside the object
-        if (dot(N, I) > 0) {
-            N = -N;
-            N_H = -N_H;
+        if (dot(normal, I) > 0) {
+            normal  = -normal;
+            normalH = -normalH;
             swap(n1, n2);
             enteringObject = false;
         }
@@ -292,23 +334,23 @@ vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, in
         // Schlick's aproximation
         float R0 = (n1 - n2) / (n1 + n2);
               R0 = R0 * R0;
-        float cosTheta1 = -dot(N, I);
+        float cosTheta1 = -dot(normal, I);
         float Rprob = R0 + (1.0f - R0) * pow(1 - cosTheta1, 5);
         float eta = n1/n2;
         float k = 1.0f - eta * eta * (1.0f - cosTheta1 * cosTheta1);
         rnd = distribution(engine);
         if (k >= 0 && rnd > Rprob) {
             // Refraction
-            vec3 refractedRay3 = refract(normalize(I), normalize(N), eta);
+            vec3 refractedRay3 = refract(normalize(I), normalize(normal), eta);
             vec4 refractedRay  = vec4(refractedRay3.x,
                                       refractedRay3.y,
                                       refractedRay3.z,
                                       1.0f);
-            vec4 refractPoint = primaryIntersect.position - N_H * SHADOW_BIAS;
+            vec4 refractPoint = primaryIntersect.position - normalH * SHADOW_BIAS;
             shading = castRay(enteringObject, absorbDistance, refractPoint, refractedRay, depth + 1);
             if (enteringObject) {
                 // Beer's Law
-                vec3 absorbColor = exp((-surface.sigma) * absorbDistance);
+                vec3 absorbColor = exp((-sigma) * absorbDistance);
                 shading *= absorbColor;
                 absorbDistance = 0.0f;
             } else {
@@ -317,12 +359,12 @@ vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, in
             }
         } else {
             // Reflection
-            vec3 reflectedRay3 = reflect(normalize(I), normalize(N));
+            vec3 reflectedRay3 = reflect(normalize(I), normalize(normal));
             vec4 reflectedRay  = vec4(reflectedRay3.x,
                                       reflectedRay3.y,
                                       reflectedRay3.z,
                                       1.0f);
-            vec4 reflectPoint = primaryIntersect.position + N_H * SHADOW_BIAS;
+            vec4 reflectPoint = primaryIntersect.position + normalH * SHADOW_BIAS;
             shading = castRay(!enteringObject, absorbDistance, reflectPoint, reflectedRay, depth + 1);
             if (!enteringObject) {
                 // Ray is inside object
@@ -330,20 +372,20 @@ vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, in
             }
         }
         shading /= rr_prob;
-    } else {
+    } else if (type == OPAQUE) {
         /* ----- Micro-facet BRDF ----- */
 
         // Sample from the hemisphere
         vec3 N, Nt, Nb;
-        N = (vec3) surface.normal;
+        N = normal;
         createCoordinateSystem(N, Nt, Nb);
 
-        vec3 emmittedLight = surface.emission * vec3(1, 1, 1);
-        vec4 bouncePoint = primaryIntersect.position + surface.normal * SHADOW_BIAS;
+        vec3 emmittedLight = emission * vec3(1, 1, 1);
+        vec4 bouncePoint = primaryIntersect.position + normalH * SHADOW_BIAS;
         rnd = distribution(engine);
 
         vec3 indirectLight = vec3(0,0,0);
-        if (rnd > surface.reflectivity) {
+        if (rnd > reflectivity) {
             // Spawn a diffuse ray
             int samples = max( (int) (MAX_SAMPLES / pow(DROP_FACTOR, depth)), 1 );
                 float pdf = 1 / (2 * M_PI);
@@ -362,10 +404,10 @@ vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, in
                 }
             // divide by number of samples, the PDF and the russian roulette factor
             indirectLight /= samples * pdf * rr_prob;
-            shading = (indirectLight + emmittedLight) * surface.color / (float) M_PI;
+            shading = (indirectLight + emmittedLight) * surfaceColor / (float) M_PI;
         } else {
             // Spawn a specular ray
-                vec3 reflectedRay3 = reflect((vec3) dir, (vec3) surface.normal);
+                vec3 reflectedRay3 = reflect((vec3) dir, normal);
                 vec4 reflectedRay  = vec4(reflectedRay3.x,
                                           reflectedRay3.y,
                                           reflectedRay3.z,
@@ -442,11 +484,32 @@ bool TriangleIntersection( vec4 start, vec4 dir, Triangle triangle, Intersection
     }
 }
 
+bool SphereIntersection( vec4 start, vec4 dir, Sphere sphere, Intersection& intersection ) {
+    float t, t0, t1;
+    // analytic solution (geometric solution overflows ... )
+    vec3  L = (vec3) start - (vec3) sphere.center;
+    float a = dot( (vec3) dir, (vec3) dir);
+    float b = 2 * dot((vec3) dir, L);
+    float c = dot(L, L) - (sphere.radius * sphere.radius);
+    if (!solveQuadratic(a, b, c, t0, t1)) return false;
+
+    if (t0 > t1) std::swap(t0, t1);
+    if (t0 < 0) {
+        t0 = t1; // if t0 is negative, let's use t1 instead
+        if (t0 < 0) return false; // both t0 and t1 are negative
+    }
+
+    intersection.distance = t0;
+    intersection.position = start + dir * t0;
+    return true;
+}
+
 bool ClosestIntersection(
-    vec4 start,
-    vec4 dir,
-    const vector<Triangle>& triangles,
-    Intersection& closestIntersection ) {
+      vec4 start,
+      vec4 dir,
+      const vector<Triangle>& triangles,
+      const vector<Sphere>& spheres,
+      Intersection& closestIntersection ) {
 
     bool found = false;
     float minDistance = std::numeric_limits<float>::max();
@@ -454,15 +517,48 @@ bool ClosestIntersection(
 
     for( int i = 0; i < triangles.size(); i++ ) {
         if (TriangleIntersection( start, dir, triangles[i], localIntersection )) {
-            found = true;
-            localIntersection.triangleIndex = i;
             if (localIntersection.distance < minDistance) {
+                found = true;
                 closestIntersection = localIntersection;
+                closestIntersection.triangleIndex =  i;
+                closestIntersection.sphereIndex   = -99;
                 minDistance = localIntersection.distance;
             }
         }
     }
+
+    for( int i = 0; i < spheres.size(); i++ ) {
+        if (SphereIntersection( start, dir, spheres[i], localIntersection )) {
+            if (localIntersection.distance < minDistance) {
+                found = true;
+                closestIntersection = localIntersection;
+                closestIntersection.triangleIndex = -99;
+                closestIntersection.sphereIndex   =  i;
+                minDistance = localIntersection.distance;
+            }
+        }
+    }
+
     return found;
+}
+
+bool solveQuadratic(const float &a, const float &b, const float &c, float &x0, float &x1) {
+    float delta = b * b - 4 * a * c;
+    if (delta < 0) {
+        return false;
+    }
+    else if (delta == 0) {
+        x0 = x1 = - 0.5 * b / a;
+    } else {
+        float q = (b > 0) ?
+            -0.5 * (b + sqrt(delta)) :
+            -0.5 * (b - sqrt(delta));
+        x0 = q / a;
+        x1 = c / q;
+    }
+    if (x0 > x1) std::swap(x0, x1);
+
+    return true;
 }
 
 void RotateX( mat4& rotation, float rad ) {

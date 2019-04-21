@@ -6,6 +6,7 @@
 #include <glm/glm.hpp>
 #include <vector>
 
+using namespace std;
 using glm::vec2;
 using glm::vec3;
 using glm::vec4;
@@ -14,7 +15,37 @@ using glm::vec4;
 #define OPAQUE       0
 #define TRANSPARENT  1
 
-// Used to describe a triangular surface:
+class Sphere {
+public:
+    vec4  center;
+    float radius;
+    vec3  color;
+    float emission;
+    int   isTranparent;
+    float reflectivity;
+    float IOR;
+    vec3  sigma;
+
+    Sphere( vec4  center,
+            float radius,
+            vec3  color,
+            float emission,
+            int   isTranparent,
+            float reflectivity,
+            float IOR,
+            vec3  sigma )
+        : center(center),
+          radius(radius),
+          color(color),
+          emission(emission),
+          isTranparent(isTranparent),
+          reflectivity(reflectivity),
+          IOR(IOR),
+          sigma(sigma) {
+
+    }
+};
+
 class Triangle {
 public:
     vec4  v0;
@@ -29,8 +60,24 @@ public:
     vec3  sigma;
 
     // Use uniform color
-	Triangle( vec4 v0, vec4 v1, vec4 v2, vec3 color, float emission, int isTranparent, float reflectivity, float IOR, vec3 sigma )
-        : v0(v0), v1(v1), v2(v2), color(color), emission(emission), isTranparent(isTranparent), reflectivity(reflectivity), IOR(IOR), sigma(sigma) {
+	Triangle( vec4  v0,
+              vec4  v1,
+              vec4  v2,
+              vec3  color,
+              float emission,
+              int   isTranparent,
+              float reflectivity,
+              float IOR,
+              vec3  sigma )
+        : v0(v0),
+          v1(v1),
+          v2(v2),
+          color(color),
+          emission(emission),
+          isTranparent(isTranparent),
+          reflectivity(reflectivity),
+          IOR(IOR),
+          sigma(sigma) {
         ComputeNormal();
 	}
 
@@ -49,7 +96,7 @@ public:
 // -1 <= x <= +1
 // -1 <= y <= +1
 // -1 <= z <= +1
-void LoadTestModel( std::vector<Triangle>& triangles ) {
+void LoadTestModel( vector<Triangle>& triangles, vector<Sphere>& spheres ) {
 
     // Defines colors:
     vec3 red(    0.75f, 0.15f, 0.15f );
@@ -61,14 +108,19 @@ void LoadTestModel( std::vector<Triangle>& triangles ) {
     vec3 white(  0.75f, 0.75f, 0.75f );
     vec3 silver( 0.95f, 0.93f, 0.88f );
 
-    float air   = 1.000277f;
-    float ice   = 1.26f;
-    float glass = 1.52f;
+    float air      = 1.000277f;
+    float ice      = 1.125f;
+    float glass    = 1.52f;
+    float sapphire = 1.78f;
+    float diamond  = 2.41f;
     vec3 transparent(0.0f, 0.0f, 0.0f);
-    vec3 beer_lambert( 2.0f, 2.0f, 0.75f );
+    vec3 beer_lambert( 0.60f, 0.60f, 0.195f );
 
     triangles.clear();
     triangles.reserve( 5*2*3 );
+
+    spheres.clear();
+    spheres.reserve( 5*2*3 );
 
     // ---------------------------------------------------------------------------
     // Room
@@ -93,8 +145,8 @@ void LoadTestModel( std::vector<Triangle>& triangles ) {
     vec4 P((L+lightWidth)/2, L, (L+lightLength)/2, 1);
 
     // Floor:
-    triangles.push_back( Triangle( C, B, A, blue, 0.0f, OPAQUE, 0.0f, air, transparent ) );
-    triangles.push_back( Triangle( C, D, B, blue, 0.0f, OPAQUE, 0.0f, air, transparent ) );
+    triangles.push_back( Triangle( C, B, A, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
+    triangles.push_back( Triangle( C, D, B, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
 
     // Left wall
     triangles.push_back( Triangle( A, E, C, red,   0.0f, OPAQUE, 0.0f, air, transparent ) );
@@ -123,6 +175,17 @@ void LoadTestModel( std::vector<Triangle>& triangles ) {
     triangles.push_back( Triangle( G, H, D, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
 
     // ---------------------------------------------------------------------------
+    // Spheres
+
+    // left - back
+    spheres.push_back( Sphere( vec4(410, 100, 380, 1), 100.0f,
+                               white, 0.0f, OPAQUE, 1.0f, air, transparent) );
+
+    // front - right
+    spheres.push_back( Sphere( vec4(157, 100, 245, 1), 100.0f,
+                               white, 0.0f, TRANSPARENT, 0.0f, sapphire, transparent) );
+
+    // ---------------------------------------------------------------------------
     // Short block
 
     A = vec4(290,0,114,1);
@@ -135,25 +198,25 @@ void LoadTestModel( std::vector<Triangle>& triangles ) {
     G = vec4(240,165,272,1);
     H = vec4( 82,165,225,1);
 
-    // Front
-    triangles.push_back( Triangle( E, B, A, white, 0.0f, TRANSPARENT, 0.0f, ice, transparent ) );
-    triangles.push_back( Triangle( E, F, B, white, 0.0f, TRANSPARENT, 0.0f, ice, transparent ) );
-
-    // Right
-    triangles.push_back( Triangle( F, D, B, white, 0.0f, TRANSPARENT, 0.0f, ice, transparent ) );
-    triangles.push_back( Triangle( F, H, D, white, 0.0f, TRANSPARENT, 0.0f, ice, transparent ) );
-
-    // BACK
-    triangles.push_back( Triangle( H, C, D, white, 0.0f, TRANSPARENT, 0.0f, ice, transparent ) );
-    triangles.push_back( Triangle( H, G, C, white, 0.0f, TRANSPARENT, 0.0f, ice, transparent ) );
-
-    // LEFT
-    triangles.push_back( Triangle( G, E, C, white, 0.0f, TRANSPARENT, 0.0f, ice, transparent ) );
-    triangles.push_back( Triangle( E, A, C, white, 0.0f, TRANSPARENT, 0.0f, ice, transparent ) );
-
-    // TOP
-    triangles.push_back( Triangle( G, F, E, white, 0.0f, TRANSPARENT, 0.0f, ice, transparent ) );
-    triangles.push_back( Triangle( G, H, F, white, 0.0f, TRANSPARENT, 0.0f, ice, transparent ) );
+    // // Front
+    // triangles.push_back( Triangle( E, B, A, white, 0.0f, OPAQUE, 0.0f, air, beer_lambert ) );
+    // triangles.push_back( Triangle( E, F, B, white, 0.0f, OPAQUE, 0.0f, air, beer_lambert ) );
+    //
+    // // Right
+    // triangles.push_back( Triangle( F, D, B, white, 0.0f, OPAQUE, 0.0f, air, beer_lambert ) );
+    // triangles.push_back( Triangle( F, H, D, white, 0.0f, OPAQUE, 0.0f, air, beer_lambert ) );
+    //
+    // // BACK
+    // triangles.push_back( Triangle( H, C, D, white, 0.0f, OPAQUE, 0.0f, air, beer_lambert ) );
+    // triangles.push_back( Triangle( H, G, C, white, 0.0f, OPAQUE, 0.0f, air, beer_lambert ) );
+    //
+    // // LEFT
+    // triangles.push_back( Triangle( G, E, C, white, 0.0f, OPAQUE, 0.0f, air, beer_lambert ) );
+    // triangles.push_back( Triangle( E, A, C, white, 0.0f, OPAQUE, 0.0f, air, beer_lambert ) );
+    //
+    // // TOP
+    // triangles.push_back( Triangle( G, F, E, white, 0.0f, OPAQUE, 0.0f, air, beer_lambert ) );
+    // triangles.push_back( Triangle( G, H, F, white, 0.0f, OPAQUE, 0.0f, air, beer_lambert ) );
 
     // ---------------------------------------------------------------------------
     // Tall block
@@ -168,25 +231,25 @@ void LoadTestModel( std::vector<Triangle>& triangles ) {
     G = vec4(472,330,406,1);
     H = vec4(314,330,456,1);
 
-    // Front
-    triangles.push_back( Triangle( E, B, A, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
-    triangles.push_back( Triangle( E, F, B, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
-
-    // Right
-    triangles.push_back( Triangle( F, D, B, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
-    triangles.push_back( Triangle( F, H, D, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
-
-    // BACK
-    triangles.push_back( Triangle( H, C, D, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
-    triangles.push_back( Triangle( H, G, C, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
-
-    // LEFT
-    triangles.push_back( Triangle( G, E, C, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
-    triangles.push_back( Triangle( E, A, C, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
-
-    // TOP
-    triangles.push_back( Triangle( G, F, E, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
-    triangles.push_back( Triangle( G, H, F, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
+    // // Front
+    // triangles.push_back( Triangle( E, B, A, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
+    // triangles.push_back( Triangle( E, F, B, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
+    //
+    // // Right
+    // triangles.push_back( Triangle( F, D, B, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
+    // triangles.push_back( Triangle( F, H, D, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
+    //
+    // // BACK
+    // triangles.push_back( Triangle( H, C, D, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
+    // triangles.push_back( Triangle( H, G, C, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
+    //
+    // // LEFT
+    // triangles.push_back( Triangle( G, E, C, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
+    // triangles.push_back( Triangle( E, A, C, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
+    //
+    // // TOP
+    // triangles.push_back( Triangle( G, F, E, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
+    // triangles.push_back( Triangle( G, H, F, white, 0.0f, OPAQUE, 0.0f, air, transparent ) );
 
 
     // ----------------------------------------------
@@ -214,6 +277,17 @@ void LoadTestModel( std::vector<Triangle>& triangles ) {
     	triangles[i].v2.w = 1.0;
 
     	triangles[i].ComputeNormal();
+	}
+
+    for( size_t i=0; i<spheres.size(); ++i ) {
+        spheres[i].center *= 2/L;
+        spheres[i].radius *= 2/L;
+
+        spheres[i].center -= vec4(1,1,1,1);
+
+        spheres[i].center.x *= -1;
+        spheres[i].center.y *= -1;
+        spheres[i].center.w  =  1.0;
 	}
 }
 
