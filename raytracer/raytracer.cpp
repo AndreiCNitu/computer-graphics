@@ -35,7 +35,7 @@ struct Camera {
 #define FULLSCREEN_MODE true
 #define SHADOW_BIAS 0.00001f
 #define MIN_DEPTH 20
-#define RR_PROB 0.45f
+#define RR_PROB 0.70f
 #define MAX_SAMPLES 1
 #define DROP_FACTOR 1
 
@@ -192,50 +192,50 @@ bool Update() {
             float RS = camera.rotationSpeed;
             mat4  R  = camera.rotation;
 	        switch(key_code) {
-                case SDLK_w:
-                    // Translate camera forward
-                    camera.position += CS * R * vec4(0, 0, 0.1f, 0);
-                    break;
-                case SDLK_s:
-                    // Translate camera backwards
-                    camera.position -= CS * R * vec4(0, 0, 0.1f, 0);
-                    break;
-                case SDLK_a:
-                    // Translate camera left
-                    camera.position -= CS * R * vec4(0.1f, 0, 0, 0);
-                    break;
-                case SDLK_d:
-                    // Translate camera right
-                    camera.position += CS * R * vec4(0.1f, 0, 0, 0);
-                    break;
-                case SDLK_q:
-                    // Translate camera up
-                    camera.position -= CS * R * vec4(0, 0.1f, 0, 0);
-                    break;
-                case SDLK_e:
-                    // Translate camera down
-                    camera.position += CS * R * vec4(0, 0.1f, 0, 0);
-                    break;
-	            case SDLK_LEFT:
-                    // Rotate camera left
-                    RotateY(camera.rotation, -RS);
-		            break;
-	            case SDLK_RIGHT:
-                    // Rotate camera right
-                    RotateY(camera.rotation,  RS);
-		            break;
-                case SDLK_UP:
-                    // Rotate camera up
-                    RotateX(camera.rotation,  RS);
-		            break;
-	            case SDLK_DOWN:
-                    // Rotate camera down
-                    RotateX(camera.rotation, -RS);
-		            break;
-                case SDLK_SPACE:
-                    // Reset camera
-                    InitialiseParams();
-		            break;
+                // case SDLK_w:
+                //     // Translate camera forward
+                //     camera.position += CS * R * vec4(0, 0, 0.1f, 0);
+                //     break;
+                // case SDLK_s:
+                //     // Translate camera backwards
+                //     camera.position -= CS * R * vec4(0, 0, 0.1f, 0);
+                //     break;
+                // case SDLK_a:
+                //     // Translate camera left
+                //     camera.position -= CS * R * vec4(0.1f, 0, 0, 0);
+                //     break;
+                // case SDLK_d:
+                //     // Translate camera right
+                //     camera.position += CS * R * vec4(0.1f, 0, 0, 0);
+                //     break;
+                // case SDLK_q:
+                //     // Translate camera up
+                //     camera.position -= CS * R * vec4(0, 0.1f, 0, 0);
+                //     break;
+                // case SDLK_e:
+                //     // Translate camera down
+                //     camera.position += CS * R * vec4(0, 0.1f, 0, 0);
+                //     break;
+	            // case SDLK_LEFT:
+                //     // Rotate camera left
+                //     RotateY(camera.rotation, -RS);
+		        //     break;
+	            // case SDLK_RIGHT:
+                //     // Rotate camera right
+                //     RotateY(camera.rotation,  RS);
+		        //     break;
+                // case SDLK_UP:
+                //     // Rotate camera up
+                //     RotateX(camera.rotation,  RS);
+		        //     break;
+	            // case SDLK_DOWN:
+                //     // Rotate camera down
+                //     RotateX(camera.rotation, -RS);
+		        //     break;
+                // case SDLK_SPACE:
+                //     // Reset camera
+                //     InitialiseParams();
+		        //     break;
 	            case SDLK_ESCAPE:
                     // Quit
 		            return false;
@@ -382,10 +382,22 @@ vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, in
 
         vec3 emmittedLight = emission * vec3(1, 1, 1);
         vec4 bouncePoint = primaryIntersect.position + normalH * SHADOW_BIAS;
+
+        float fs = 0.0f;
+        if (reflectivity != 0.0f) {
+            // Schlick's aproximation
+            float n1 = 1.000277f;
+            float n2 = ior;
+            float R0 = (n1 - n2) / (n1 + n2);
+                  R0 = R0 * R0;
+            float cosTheta1 = -dot(normal, normalize((vec3) dir));
+            float Rprob = R0 + (1.0f - R0) * pow(1 - cosTheta1, 5);
+            fs = reflectivity + (1.0f - reflectivity) * Rprob;
+        }
         rnd = distribution(engine);
 
         vec3 indirectLight = vec3(0,0,0);
-        if (rnd > reflectivity) {
+        if (rnd >= fs) {
             // Spawn a diffuse ray
             int samples = max( (int) (MAX_SAMPLES / pow(DROP_FACTOR, depth)), 1 );
                 float pdf = 1 / (2 * M_PI);
