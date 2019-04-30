@@ -35,7 +35,7 @@ struct Camera {
 #define FULLSCREEN_MODE true
 #define SHADOW_BIAS 0.00001f
 #define MIN_DEPTH 20
-#define RR_PROB 0.70f
+#define RR_PROB 0.60f
 #define MAX_SAMPLES 1
 #define DROP_FACTOR 1
 
@@ -317,7 +317,7 @@ vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, in
     if (type == TRANSPARENT) {
         /* ----- Transparent BSDF ----- */
 
-        vec3 I = (vec3) dir;
+        vec3 I = normalize((vec3) dir);
         // n2 -> n1, assume air
         float n1 = 1.000277f;
         float n2 = ior;
@@ -341,7 +341,7 @@ vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, in
         rnd = distribution(engine);
         if (k >= 0 && rnd > Rprob) {
             // Refraction
-            vec3 refractedRay3 = refract(normalize(I), normalize(normal), eta);
+            vec3 refractedRay3 = refract(I, normalize(normal), eta);
             vec4 refractedRay  = vec4(refractedRay3.x,
                                       refractedRay3.y,
                                       refractedRay3.z,
@@ -359,7 +359,7 @@ vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, in
             }
         } else {
             // Reflection
-            vec3 reflectedRay3 = reflect(normalize(I), normalize(normal));
+            vec3 reflectedRay3 = reflect(I, normalize(normal));
             vec4 reflectedRay  = vec4(reflectedRay3.x,
                                       reflectedRay3.y,
                                       reflectedRay3.z,
