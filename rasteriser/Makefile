@@ -35,10 +35,23 @@ run-cornell :
 	make build
 	./$(EXEC) --realtime --cornell-box
 
-run-urs:
+run-test :
+	make clean
+	make build
+	./$(EXEC) --realtime --load-box capsule.obj
+
+run-urs :
 	make clean
 	make build
 	./$(EXEC) --realtime --load-box ursache.obj
+
+run-spot :
+	make clean
+	make build
+	./$(EXEC) --realtime --load-box spot_trick.obj
+
+run :
+	./$(EXEC) --realtime --load-box spot_trick.obj
 
 # Clean rule
 .PHONY: clean

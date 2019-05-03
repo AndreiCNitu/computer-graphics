@@ -101,6 +101,24 @@ void move( const uint8_t *keyState, int lX, int lY, float CS,
     if (lY < 0) {
         RotateX(rotation, -RS);
     }
+
+    /* Rotate camera left */
+    if (keyState[SDL_SCANCODE_LEFT]) {
+        RotateY(rotation, RS);
+    }
+    /* Rotate camera right */
+    if (keyState[SDL_SCANCODE_RIGHT]) {
+        RotateY(rotation, -RS);
+    }
+    /* Rotate camera up */
+    if (keyState[SDL_SCANCODE_UP]) {
+        RotateX(rotation, -RS);
+    }
+    /* Rotate camera down */
+    if (keyState[SDL_SCANCODE_DOWN]) {
+        RotateX(rotation, RS);
+    }
+
 }
 
 #endif

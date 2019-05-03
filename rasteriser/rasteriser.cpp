@@ -6,6 +6,7 @@
 #include "ModelLoader.h"
 #include "Movement.h"
 #include <stdint.h>
+#include <glm/ext.hpp>
 
 using namespace std;
 using glm::ivec2;
@@ -36,10 +37,12 @@ struct Pixel {
     int y;
     float zinv;
     vec4 pos3d;
+    vec2 uv;
 };
 
 struct Vertex {
     vec4 position;
+    vec2 uv;
 };
 
 vector<Triangle> triangles;
@@ -50,11 +53,30 @@ Light light;
 #define SCREEN_HEIGHT 1600
 #define FULLSCREEN_MODE true
 
+#define EDGE_THRESHOLD_MIN 0.0312
+#define EDGE_THRESHOLD_MAX 0.125
+#define SUBPIXEL_QUALITY 0.75
+
 // Store 1/z for each pixel
 float depthBuffer[SCREEN_HEIGHT][SCREEN_WIDTH];
+vec3 image[SCREEN_WIDTH][SCREEN_HEIGHT];
+bool fxaa = 0;
+vec3 fragColor;
+float quality[12] = {1, 1, 1, 1, 1, 1.5, 2.0, 2.0, 2.0, 2.0, 4.0, 8.0};
+
+// TEXTURES
+SDL_Surface* texture_surf = SDL_LoadBMP("../Models/textures/spot.bmp");
+std::vector<glm::vec3>texture_mat;
+
+vec3 pixel_FXAA (int x, int y);
+float toLuma(vec3 rgb);
+void clean_FXAA(void);
+int pixelFXAA ( int i, int j );
 
 void Update();
 void Print_Time();
+int convert_texture(void);
+void FXAA(screen* screen);
 void Draw(screen* screen);
 void InitialiseParams(); // Initialise camera and light
 void RotateX( mat4& rotation, float rad );
@@ -64,9 +86,9 @@ void PixelShader( screen* screen, const Pixel& pixel, vec3 color,
                                                       vec4 normalH,
                                                       vec3 reflectance );
 void DrawPolygon( screen* screen, const vector<Vertex>& vertices,
-                                        vec3 color,
-                                        vec4 normal,
-                                        vec3 reflectance );
+                                      vec3 color,
+                                      vec4 normal,
+                                      vec3 reflectance);
 float edgeFunction(Pixel &a, Pixel &b, Pixel &p);
 
 int main( int argc, char* argv[] ) {
@@ -103,6 +125,8 @@ int main( int argc, char* argv[] ) {
     }
 
     screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
+    convert_texture();
+
     InitialiseParams();
 
     if ( strcmp("--realtime", argv[1]) == 0 ) {
@@ -133,13 +157,14 @@ void Draw(screen* screen) {
     /* Clear buffer */
     memset(screen->buffer, 0, screen->height * screen->width * sizeof(uint32_t));
 
-    // Clear Z-buffer
+//     Clear Z-buffer
     for( int y = 0; y < SCREEN_HEIGHT; ++y )
            for( int x = 0; x < SCREEN_WIDTH; ++x )
             depthBuffer[y][x] = 0.0f;
 
     #pragma omp parallel for schedule(dynamic)
     for(int i = 0; i < triangles.size(); i++) {
+
         vec3 triangleColor  = triangles[i].color;
         vec4 triangleNormal = triangles[i].normal;
         vec3 currentReflectance = vec3(1, 1, 1);
@@ -148,9 +173,233 @@ void Draw(screen* screen) {
         vertices[0].position = triangles[i].v0;
         vertices[1].position = triangles[i].v1;
         vertices[2].position = triangles[i].v2;
-        DrawPolygon( screen, vertices, triangleColor, triangleNormal, currentReflectance );
+        vertices[0].uv = triangles[i].uv0;
+        vertices[1].uv = triangles[i].uv1;
+        vertices[2].uv = triangles[i].uv2;
+        DrawPolygon( screen, vertices, triangleColor, triangleNormal, currentReflectance);
+    }
+
+    if (fxaa) FXAA( screen );
+}
+
+void FXAA ( screen* screen ) {
+
+    #pragma omp parallel for schedule(dynamic)
+    for (int i = 0; i < SCREEN_HEIGHT; ++i) {
+        for (int j = 0; j < SCREEN_WIDTH; ++j) {
+            // cout << " " << i << " " << j << endl;
+            PutPixelSDL( screen, i, j, pixel_FXAA (i, j));
+            // PutPixelSDL( screen, i, j, fragColor); //color * returnVector);
+        }
+    }
+    clean_FXAA();
+}
+
+vec3 pixel_FXAA (int i, int j) {
+
+     vec3 colorCenter = image[i][j];
+     vec3 fragColor = image[i][j];
+     if (0 >= i || 0 >= j || SCREEN_HEIGHT-1 <= i || SCREEN_WIDTH-1 <= j)  return colorCenter;
+     vec2 inverseScreenSize(1.0f/SCREEN_WIDTH, 1.0f/SCREEN_HEIGHT);
+
+     float center = toLuma(colorCenter);
+
+     float lumaDown = toLuma(image[i][j-1]);
+     float lumaUp = toLuma(image[i][j+1]);
+     float lumaLeft = toLuma(image[i-1][j]);
+     float lumaRight = toLuma(image[i+1][j]);
+
+     float lumaMin = min(center,min(min(lumaDown,lumaUp),min(lumaLeft,lumaRight)));
+     float lumaMax = max(center,max(max(lumaDown,lumaUp),max(lumaLeft,lumaRight)));
+     float lumaRange = lumaMax - lumaMin;
+
+     if(lumaRange < max(EDGE_THRESHOLD_MIN,lumaMax*EDGE_THRESHOLD_MAX)){
+         fragColor = colorCenter;
+         return image[i][j];
+     }
+
+     float lumaDownUp = lumaDown + lumaUp;
+     float lumaLeftRight = lumaLeft + lumaRight;
+
+     float lumaDownLeft = toLuma(image[i-1][j-1]);
+     float lumaUpRight = toLuma(image[i+1][j+1]);
+     float lumaUpLeft = toLuma(image[i-1][j+1]);
+     float lumaDownRight = toLuma(image[i+1][j-1]);
+     float lumaLeftCorners = lumaDownLeft + lumaUpLeft;
+     float lumaDownCorners = lumaDownLeft + lumaDownRight;
+     float lumaRightCorners = lumaDownRight + lumaUpRight;
+     float lumaUpCorners = lumaUpRight + lumaUpLeft;
+
+     bool isHorizontal = (abs(-2.0f*lumaLeft+lumaLeftCorners)+abs(-2.0*center+lumaDownUp )*2.0+abs(-2.0*lumaRight+lumaRightCorners)
+         >= abs(-2.0*lumaUp+lumaUpCorners)+abs(-2.0*center+lumaLeftRight)*2.0+abs(-2.0*lumaDown+lumaDownCorners));
+
+     float luma1 = isHorizontal ? lumaDown : lumaLeft;
+     float luma2 = isHorizontal ? lumaUp : lumaRight;
+     float gradient1 = luma1 - center;
+     float gradient2 = luma2 - center;
+
+     float gradientScaled = 0.25f*max(abs(gradient1),abs(gradient2));
+     float stepLength = isHorizontal ? inverseScreenSize.y : inverseScreenSize.x;
+     float lumaLocalAverage = 0.0f;
+
+     if(abs(gradient1) < abs(gradient2)){
+         lumaLocalAverage = 0.5*(luma2 + center);
+     } else {
+         stepLength = - stepLength;
+         lumaLocalAverage = 0.5*(luma1 + center);
+     }
+
+     vec2 currentUv(i, j);
+     if(isHorizontal){
+         currentUv.y += stepLength * 0.5;
+     } else {
+         currentUv.x += stepLength * 0.5;
+     }
+
+     vec2 offset = isHorizontal ? vec2(inverseScreenSize.x,0.0) : vec2(0.0,inverseScreenSize.y);
+     vec2 uv1 = currentUv - offset;
+     vec2 uv2 = currentUv + offset;
+
+     float lumaEnd1 = toLuma(image[(int)uv1.x][(int)uv1.y]);
+     float lumaEnd2 = toLuma(image[(int)uv2.x][(int)uv2.y]);
+     lumaEnd1 -= lumaLocalAverage;
+     lumaEnd2 -= lumaLocalAverage;
+
+     bool reached1 = abs(lumaEnd1) >= gradientScaled;
+     bool reached2 = abs(lumaEnd2) >= gradientScaled;
+     bool reachedBoth = reached1 && reached2;
+
+     if(!reached1) uv1 -= offset;
+     if(!reached2) uv2 += offset;
+
+     if(!reachedBoth){
+         for(int i = 2; i < 12; i++){
+             if(!reached1){
+                 lumaEnd1 = toLuma(image[(int)uv1.x][(int)uv1.y]);
+                 lumaEnd1 = lumaEnd1 - lumaLocalAverage;
+             }
+             if(!reached2){
+                 lumaEnd2 = toLuma(image[(int)uv2.x][(int)uv2.y]);
+                 lumaEnd2 = lumaEnd2 - lumaLocalAverage;
+             }
+             reached1 = abs(lumaEnd1) >= gradientScaled;
+             reached2 = abs(lumaEnd2) >= gradientScaled;
+             reachedBoth = reached1 && reached2;
+
+             if(!reached1){
+                 uv1 -= offset * quality[i];
+             }
+             if(!reached2){
+                 uv2 += offset * quality[i];
+             }
+
+             if(reachedBoth){ break;}
+         }
+     }
+
+     float distance1 = isHorizontal ? (i - uv1.x) : (j - uv1.y);
+     float distance2 = isHorizontal ? (uv2.x - i) : (uv2.y - j);
+     bool dir = distance1 < distance2;
+     float distanceFinal = min(distance1, distance2);
+     float edgeThickness = (distance1 + distance2);
+     float pixelOffset = - distanceFinal / edgeThickness + 0.5;
+     bool iscenterSmaller = center < lumaLocalAverage;
+     bool var = ((dir ? lumaEnd1 : lumaEnd2) < 0.0) != iscenterSmaller;
+     float finalOffset = var ? pixelOffset : 0.0;
+     float avg = (1.0/12.0) * (2.0 * (lumaDownUp + lumaLeftRight) + lumaLeftCorners + lumaRightCorners);
+
+     float tmp = 0.0;
+     if (abs(avg - center)/lumaRange < 0.0) {
+         tmp = 0.0;
+     } else if (abs(avg - center)/lumaRange > 1.0) {
+         tmp = 1.0;
+     } else {
+         tmp = abs(avg - center)/lumaRange;
+     }
+
+     float subPixelOffset1 = tmp;
+     float subPixelOffset2 = (-2.0 * subPixelOffset1 + 3.0) * subPixelOffset1 * subPixelOffset1;
+     float subPixelOffsetFinal = subPixelOffset2 * subPixelOffset2 * SUBPIXEL_QUALITY;
+
+     finalOffset = max(finalOffset,subPixelOffsetFinal);
+
+     vec2 finalUv(i, j);
+     if(isHorizontal){
+         finalUv.y += finalOffset * stepLength;
+     } else {
+         finalUv.x += finalOffset * stepLength;
+     }
+
+     image[i][j] = (image[(int)finalUv.x][(int)finalUv.y]+ 1.0f * image[i][j]) / 2.0f;
+     return image[i][j];
+ }
+
+void clean_FXAA (void) {
+// poate mem_set?
+    vec3 tmp = (vec3)(0, 0, 0);
+
+    for (int i = 0; i < SCREEN_HEIGHT; ++i) {
+        for (int j = 0; j < SCREEN_WIDTH; ++j) {
+            image[i][j] = tmp;
+        }
     }
 }
+
+float toLuma(vec3 rgb) {
+    return sqrt(dot(rgb, vec3(0.299, 0.587, 0.114)));
+}
+
+int convert_texture(void) {
+
+    int bpp = texture_surf->format->BytesPerPixel;
+    /* Here p is the address to the pixel we want to retrieve */
+
+    std::cout << "texture size is: " << texture_surf->w << " and " << texture_surf->h << std::endl;
+
+    std::cout << "size is: " << texture_mat.size() << std::endl;
+
+    for(int i = 0; i < texture_surf->h; ++i) {
+        for(int j = 0; j < texture_surf->w; ++j) {
+
+            Uint8 *p = (Uint8 *)texture_surf->pixels + j * texture_surf->pitch + i * bpp;
+            Uint32 data = 0;
+
+            switch (bpp)
+            {
+                case 1:
+                    data = *p;
+                    break;
+                case 2:
+                    data = *(Uint16 *)p;
+                    break;
+                case 3:
+                    if (SDL_BYTEORDER == SDL_BIG_ENDIAN)
+                        data = p[0] << 16 | p[1] << 8 | p[2];
+                    else
+                        data = p[0] | p[1] << 8 | p[2] << 16;
+                    break;
+                case 4:
+                    data = *(Uint32 *)p;
+                    break;
+
+                default:
+                    return 0;       /* shouldn't happen, but avoids warnings */
+            }
+
+        SDL_Color rgb;
+        SDL_GetRGB(data, texture_surf->format, &rgb.r, &rgb.g, &rgb.b);
+
+        vec3 tmp;
+        tmp.x = (float)rgb.r/255.0f;
+        tmp.y = (float)rgb.g/255.0f;
+        tmp.z = (float)rgb.b/255.0f;
+        texture_mat.push_back(tmp);
+
+        }
+    }
+    return 0;
+}
+
 
 void Update() {
     const uint8_t *keyState = SDL_GetKeyboardState(NULL);
@@ -169,6 +418,11 @@ void Update() {
          camera.translation,
          camera.rotation,
          light.position);
+
+    if (keyState[SDL_SCANCODE_V]) {
+     fxaa = !fxaa;
+     cout << "This is fxaa: " << fxaa << std::endl;
+    }
 }
 
 void Print_Time() {
@@ -190,7 +444,6 @@ void Print_Time() {
 }
 
 void InitialiseParams() {
-    /* https://www.h-schmidt.net/FloatConverter/IEEE754.html */
     camera.focalLength = SCREEN_HEIGHT;
     camera.position = vec4( 0.0, 0.0, -3.001f, 1.0);
     camera.translation = vec4( 0.0f, 0.0f, 0.0f, 1.0f);
@@ -239,6 +492,9 @@ void VertexShader( const Vertex& vertex, Pixel& pixel ) {
     pixel.pos3d.x = vertex.position.x;
 	pixel.pos3d.y = vertex.position.y;
 	pixel.pos3d.z = vertex.position.z;
+
+    pixel.uv.x = vertex.uv.x;
+	pixel.uv.y = vertex.uv.y;
 }
 
 void PixelShader( screen* screen, const Pixel& pixel, vec3 color,
@@ -265,14 +521,15 @@ void PixelShader( screen* screen, const Pixel& pixel, vec3 color,
                           / ( (float) (4 * M_PI) * radius * radius );
         returnVector = reflectance * (returnVector + light.indirectPowerPerArea);
 
-        PutPixelSDL( screen, x, y, color * returnVector);
+        if (fxaa) image[x][y] = color * returnVector;
+        if (!fxaa) PutPixelSDL( screen, x, y, color * returnVector);
     }
 }
 
 void DrawPolygon( screen* screen, const vector<Vertex>& vertices,
                                         vec3 color,
                                         vec4 normal,
-                                        vec3 reflectance ) {
+                                        vec3 reflectance) {
     int V = vertices.size();
     vector<Pixel> vertexPixels( V );
     int xmin = numeric_limits<int>::max();
@@ -327,7 +584,21 @@ void DrawPolygon( screen* screen, const vector<Vertex>& vertices,
                            V1.pos3d * V1.zinv * w1 +
                            V2.pos3d * V2.zinv * w2)
                          / (P.zinv);
-                PixelShader(screen, P, color, normal, reflectance);
+                if (0.0f > V0.uv.x) {
+                    PixelShader(screen, P, color, normal, reflectance);
+                } else {
+                    P.uv = (V0.uv * V0.zinv * w0 +
+                            V1.uv * V1.zinv * w1 +
+                            V2.uv * V2.zinv * w2)
+                            / (P.zinv);
+
+                    int texture_x = P.uv.x * texture_surf->h;
+                    int texture_y = P.uv.y * texture_surf->w;
+
+                    vec3 tmp = texture_mat.at(texture_x*texture_surf->w + texture_y);
+
+                    PixelShader(screen, P, tmp, normal, reflectance);
+                }
             }
         }
     }

@@ -2,6 +2,7 @@
 #define MODEL_LOADER
 
 #define SCALE_DOWN 1.1f
+// #define COLOR      vec3(0.05, 0.86, 0.99)
 #define COLOR      vec3(0.26, 0.26, 0.39)
 
 #include <iostream>
@@ -15,7 +16,6 @@
 #include <SDL.h>
 #include <limits.h>
 #include "TestModelH.h"
-
 
 using namespace std;
 using glm::vec2;
@@ -52,6 +52,7 @@ bool LoadModel( vector<Triangle>& triangles, const char* filename ) {
     cout << "Loading " << filename << " ... " << endl;
     while( !objfile.eof() ) {
         getline (objfile, line);
+
         istringstream input( line );
         input >> header >> s[0] >> s[1] >> s[2];
 
@@ -73,7 +74,8 @@ bool LoadModel( vector<Triangle>& triangles, const char* filename ) {
                                    strtof((s[2]).c_str(), 0)));
             vnInd++;
         } else if (header == "f") {
-            vec4 v[3], uv[3], normals[3];
+            vec4 v[3], normals[3];
+            vec2 uv[3];
             int vertexInd[3], textureInd[3], normalInd[3];
             input >> header >> s[0] >> s[1] >> s[2];
 
@@ -106,11 +108,10 @@ bool LoadModel( vector<Triangle>& triangles, const char* filename ) {
 
                 vec2 uvCoord = vec2( textures[textureInd[pos] - 1].x,
                                      textures[textureInd[pos] - 1].y);
-                uv[pos] = vertex;
+                uv[pos] = uvCoord;
             }
 
-            Triangle triangle = Triangle( v[2], v[1], v[0], COLOR );
-            // Triangle triangle = Triangle( v[2], v[1], v[0], uv[0], uv[1], uv[2] );
+            Triangle triangle = Triangle( v[2], v[1], v[0], COLOR, uv[2], uv[1], uv[0]);
             triangles.push_back(triangle);
         } else {
             n++;
@@ -131,9 +132,18 @@ void RotateTriangles( vector<Triangle>& triangles) {
                        vec4(0, -1,  0, 0),
                        vec4(0,  0, -1, 0),
                        vec4(0,  0,  0, 1));
+
+       mat4 Ry = mat4(vec4(-1,  0,  0, 0),
+                      vec4(0, 1,  0, 0),
+                      vec4(0,  0, -1, 0),
+                      vec4(0,  0,  0, 1));
         triangles[i].v0 = Rx * triangles[i].v0;
     	triangles[i].v1 = Rx * triangles[i].v1;
     	triangles[i].v2 = Rx * triangles[i].v2;
+
+        triangles[i].v0 = Ry * triangles[i].v0;
+    	triangles[i].v1 = Ry * triangles[i].v1;
+    	triangles[i].v2 = Ry * triangles[i].v2;
     }
 }
 
@@ -209,14 +219,25 @@ void ScaleTriangles( vector<Triangle>& triangles ) {
 
 bool LoadCornellBox( vector<Triangle>& triangles ) {
 
+    vec2 uv = vec2(-1, -1);
+
     // Defines colors:
-    vec3 red(    0.75f, 0.15f, 0.15f );
-    vec3 yellow( 0.75f, 0.75f, 0.15f );
-    vec3 green(  0.15f, 0.75f, 0.15f );
-    vec3 cyan(   0.15f, 0.75f, 0.75f );
-    vec3 blue(   0.15f, 0.15f, 0.75f );
-    vec3 purple( 0.75f, 0.15f, 0.75f );
+
+    vec3 red(    0.75f, 0.75f, 0.75f );
+    vec3 yellow( 0.75f, 0.75f, 0.75f );
+    vec3 green(  0.75f, 0.75f, 0.75f );
+    vec3 cyan(   0.75f, 0.75f, 0.75f );
+    vec3 blue(   0.75f, 0.75f, 0.75f );
+    vec3 purple( 0.75f, 0.75f, 0.75f );
     vec3 white(  0.75f, 0.75f, 0.75f );
+
+    // vec3 red(    0.75f, 0.15f, 0.15f );
+    // vec3 yellow( 0.75f, 0.75f, 0.15f );
+    // vec3 green(  0.15f, 0.75f, 0.15f );
+    // vec3 cyan(   0.15f, 0.75f, 0.75f );
+    // vec3 blue(   0.15f, 0.15f, 0.75f );
+    // vec3 purple( 0.75f, 0.15f, 0.75f );
+    // vec3 white(  0.75f, 0.75f, 0.75f );
 
     triangles.clear();
     triangles.reserve( 5*2*3 );
@@ -237,24 +258,24 @@ bool LoadCornellBox( vector<Triangle>& triangles ) {
     vec4 H(0,L,L,1);
 
     // Floor:
-    triangles.push_back( Triangle( C, B, A, green ) );
-    triangles.push_back( Triangle( C, D, B, green ) );
+    triangles.push_back( Triangle( C, B, A, green, uv, uv, uv) );
+    triangles.push_back( Triangle( C, D, B, green, uv, uv, uv) );
 
     // Left wall
-    triangles.push_back( Triangle( A, E, C, purple ) );
-    triangles.push_back( Triangle( C, E, G, purple ) );
+    triangles.push_back( Triangle( A, E, C, purple, uv, uv, uv) );
+    triangles.push_back( Triangle( C, E, G, purple, uv, uv, uv) );
 
     // Right wall
-    triangles.push_back( Triangle( F, B, D, yellow ) );
-    triangles.push_back( Triangle( H, F, D, yellow ) );
+    triangles.push_back( Triangle( F, B, D, yellow, uv, uv, uv) );
+    triangles.push_back( Triangle( H, F, D, yellow, uv, uv, uv) );
 
     // Ceiling
-    triangles.push_back( Triangle( E, F, G, cyan ) );
-    triangles.push_back( Triangle( F, H, G, cyan ) );
+    triangles.push_back( Triangle( E, F, G, cyan, uv, uv, uv) );
+    triangles.push_back( Triangle( F, H, G, cyan, uv, uv, uv) );
 
     // Back wall
-    triangles.push_back( Triangle( G, D, C, white ) );
-    triangles.push_back( Triangle( G, H, D, white ) );
+    triangles.push_back( Triangle( G, D, C, white, uv, uv, uv) );
+    triangles.push_back( Triangle( G, H, D, white, uv, uv, uv) );
 
     // ----------------------------------------------
     // Scale to the volume [-1,1]^3
