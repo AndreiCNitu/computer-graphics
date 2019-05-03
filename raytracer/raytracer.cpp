@@ -30,11 +30,14 @@ struct Camera {
     float rotationSpeed;
 };
 
-#define SCREEN_WIDTH  1600
-#define SCREEN_HEIGHT 1600
-#define FULLSCREEN_MODE true
+float fogDensity;
+vec3  fogColor;
+
+#define SCREEN_WIDTH  400
+#define SCREEN_HEIGHT 400
+#define FULLSCREEN_MODE false
 #define SHADOW_BIAS 0.00001f
-#define MIN_DEPTH 20
+#define MIN_DEPTH 4
 #define RR_PROB 0.60f
 #define MAX_SAMPLES 1
 #define DROP_FACTOR 1
@@ -49,7 +52,7 @@ int iterations = 0;
 
 bool Update();
 void Draw(screen* screen);
-vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, int depth);
+vec3 castRay(bool insideObject, float &absorbDistance, float &fogDistance, vec4 &orig, vec4 &dir, int depth);
 bool TriangleIntersection(
       vec4 start,
       vec4 dir,
@@ -154,8 +157,11 @@ void Draw(screen* screen) {
             vec4 primaryRay = camera.rotation * vec4(col - SCREEN_WIDTH  / 2.0f + col_offset,
                                                      row - SCREEN_HEIGHT / 2.0f + row_offset,
                                                      camera.focalLength, 0.0);
-            float cartita; // Cârtiță
-            vec3 pixelColor = castRay(false, cartita, camera.position, primaryRay, 0);
+            float cartita = 0.0f; // Cârtiță
+            float altaCartita = 0.0f; // altă cârtiță
+            vec3 pixelColor = castRay(false, cartita, altaCartita, camera.position, primaryRay, 0);
+            float fogAmount = min(1.0f, altaCartita * fogDensity);
+            pixelColor = fogAmount * fogColor + (1.0f - fogAmount) * pixelColor;
             image[col][row] += pixelColor;
             vec3 tonedColor = filmic(image[col][row] / (float) iterations);
             PutPixelSDL(screen, col, row, tonedColor);
@@ -254,9 +260,12 @@ void InitialiseParams() {
                            vec4(0.0, 0.0, 0.0, 1.0));
     camera.moveSpeed     = 1.0f;
     camera.rotationSpeed = 0.1f;
+
+    fogDensity = 0.575f;
+    fogColor   = vec3( 0.75f, 0.75f, 0.75f );
 }
 
-vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, int depth)  {
+vec3 castRay(bool insideObject, float &absorbDistance, float &fogDistance, vec4 &orig, vec4 &dir, int depth)  {
     if (depth > max_depth) {
         max_depth = depth;
     }
@@ -347,7 +356,7 @@ vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, in
                                       refractedRay3.z,
                                       1.0f);
             vec4 refractPoint = primaryIntersect.position - normalH * SHADOW_BIAS;
-            shading = castRay(enteringObject, absorbDistance, refractPoint, refractedRay, depth + 1);
+            shading = castRay(enteringObject, absorbDistance, fogDistance, refractPoint, refractedRay, depth + 1);
             if (enteringObject) {
                 // Beer's Law
                 vec3 absorbColor = exp((-sigma) * absorbDistance);
@@ -365,7 +374,7 @@ vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, in
                                       reflectedRay3.z,
                                       1.0f);
             vec4 reflectPoint = primaryIntersect.position + normalH * SHADOW_BIAS;
-            shading = castRay(!enteringObject, absorbDistance, reflectPoint, reflectedRay, depth + 1);
+            shading = castRay(!enteringObject, absorbDistance, fogDistance, reflectPoint, reflectedRay, depth + 1);
             if (!enteringObject) {
                 // Ray is inside object
                 absorbDistance += distance((vec3) orig, (vec3) reflectPoint);
@@ -412,7 +421,7 @@ vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, in
                          sample.x * Nb.z + sample.y * N.z + sample.z * Nt.z,
                          1.0f);
 
-                    indirectLight += t * castRay(insideObject, absorbDistance, bouncePoint, sampleWorld, depth + 1);
+                    indirectLight += t * castRay(insideObject, absorbDistance, fogDistance, bouncePoint, sampleWorld, depth + 1);
                 }
             // divide by number of samples, the PDF and the russian roulette factor
             indirectLight /= samples * pdf * rr_prob;
@@ -424,7 +433,7 @@ vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, in
                                           reflectedRay3.y,
                                           reflectedRay3.z,
                                           1.0f);
-                indirectLight = castRay(insideObject, absorbDistance, bouncePoint, reflectedRay, depth + 1);
+                indirectLight = castRay(insideObject, absorbDistance, fogDistance, bouncePoint, reflectedRay, depth + 1);
                 indirectLight /= rr_prob;
                 shading = indirectLight;
         }
@@ -432,6 +441,7 @@ vec3 castRay(bool insideObject, float &absorbDistance, vec4 &orig, vec4 &dir, in
         absorbDistance = (insideObject) ?
                          (absorbDistance + distance((vec3) orig, (vec3) bouncePoint)) :
                           0.0f;
+        fogDistance += max( 0.085f, ((orig.y + bouncePoint.y) / 2.0f)) * distance((vec3) orig, (vec3) bouncePoint);
     }
 
     return shading;
