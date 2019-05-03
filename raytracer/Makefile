@@ -10,10 +10,11 @@ CC_OPTS=--std=c++11 -c -pipe -Wall -Wno-switch -Ofast -xHOST -qopenmp
 LN_OPTS=-qopenmp
 CC=icpc
 else
-CC_OPTS=--std=c++11 -c -pipe -Wall -Wno-switch -Ofast -xHOST -fopenmp
+CC_OPTS=--std=c++11 -c -pipe -Wno-switch -Ofast -march=native -fopenmp # -Wall
 LN_OPTS=-fopenmp
 CC=g++
 endif
+# use -ggdb -g3 for debugging
 
 # SDL options
 SDL_CFLAGS := $(shell sdl2-config --cflags)
@@ -43,4 +44,4 @@ run-cube:
 .PHONY: clean
 
 clean:
-	rm -f $(EXEC) *.o *.bmp
+	rm -f $(EXEC) *.o screenshot.bmp
