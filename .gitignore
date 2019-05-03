@@ -2,5 +2,6 @@
 /raytracer/raytracer
 /rasteriser/rasteriser
 *.o
-*.bmp
+/rasteriser/*.bmp
+/raytracer/*.bmp
 /Models/lucy.obj
