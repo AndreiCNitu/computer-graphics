@@ -33,8 +33,8 @@ struct Camera {
 float fogDensity;
 vec3  fogColor;
 
-#define SCREEN_WIDTH  400
-#define SCREEN_HEIGHT 400
+#define SCREEN_WIDTH  640
+#define SCREEN_HEIGHT 640
 #define FULLSCREEN_MODE false
 #define SHADOW_BIAS 0.00001f
 #define MIN_DEPTH 4
@@ -261,7 +261,7 @@ void InitialiseParams() {
     camera.moveSpeed     = 1.0f;
     camera.rotationSpeed = 0.1f;
 
-    fogDensity = 0.575f;
+    fogDensity = 0.0f;
     fogColor   = vec3( 0.75f, 0.75f, 0.75f );
 }
 
