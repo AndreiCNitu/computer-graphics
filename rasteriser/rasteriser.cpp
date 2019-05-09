@@ -124,6 +124,8 @@ int main( int argc, char* argv[] ) {
         exit(1);
     }
 
+    cout << "past main" << endl;
+
     screen *screen = InitializeSDL( SCREEN_WIDTH, SCREEN_HEIGHT, FULLSCREEN_MODE );
     convert_texture();
 
@@ -178,8 +180,9 @@ void Draw(screen* screen) {
         vertices[2].uv = triangles[i].uv2;
         DrawPolygon( screen, vertices, triangleColor, triangleNormal, currentReflectance);
     }
-
-    if (fxaa) FXAA( screen );
+    if (fxaa) {
+        FXAA( screen );
+    }
 }
 
 void FXAA ( screen* screen ) {
@@ -187,9 +190,7 @@ void FXAA ( screen* screen ) {
     #pragma omp parallel for schedule(dynamic)
     for (int i = 0; i < SCREEN_HEIGHT; ++i) {
         for (int j = 0; j < SCREEN_WIDTH; ++j) {
-            // cout << " " << i << " " << j << endl;
             PutPixelSDL( screen, i, j, pixel_FXAA (i, j));
-            // PutPixelSDL( screen, i, j, fragColor); //color * returnVector);
         }
     }
     clean_FXAA();
@@ -231,7 +232,7 @@ vec3 pixel_FXAA (int i, int j) {
      float lumaUpCorners = lumaUpRight + lumaUpLeft;
 
      bool isHorizontal = (abs(-2.0f*lumaLeft+lumaLeftCorners)+abs(-2.0*center+lumaDownUp )*2.0+abs(-2.0*lumaRight+lumaRightCorners)
-         >= abs(-2.0*lumaUp+lumaUpCorners)+abs(-2.0*center+lumaLeftRight)*2.0+abs(-2.0*lumaDown+lumaDownCorners));
+         >= abs((-2.0) * lumaUp+lumaUpCorners)+abs(-2.0*center+lumaLeftRight)*2.0+abs(-2.0*lumaDown+lumaDownCorners));
 
      float luma1 = isHorizontal ? lumaDown : lumaLeft;
      float luma2 = isHorizontal ? lumaUp : lumaRight;
@@ -242,7 +243,7 @@ vec3 pixel_FXAA (int i, int j) {
      float stepLength = isHorizontal ? inverseScreenSize.y : inverseScreenSize.x;
      float lumaLocalAverage = 0.0f;
 
-     if(abs(gradient1) < abs(gradient2)){
+     if(abs(gradient1) < abs(gradient2)) {
          lumaLocalAverage = 0.5*(luma2 + center);
      } else {
          stepLength = - stepLength;
@@ -272,7 +273,7 @@ vec3 pixel_FXAA (int i, int j) {
      if(!reached1) uv1 -= offset;
      if(!reached2) uv2 += offset;
 
-     if(!reachedBoth){
+     if(!reachedBoth) {
          for(int i = 2; i < 12; i++){
              if(!reached1){
                  lumaEnd1 = toLuma(image[(int)uv1.x][(int)uv1.y]);
@@ -286,14 +287,16 @@ vec3 pixel_FXAA (int i, int j) {
              reached2 = abs(lumaEnd2) >= gradientScaled;
              reachedBoth = reached1 && reached2;
 
-             if(!reached1){
+             if(!reached1) {
                  uv1 -= offset * quality[i];
              }
-             if(!reached2){
+             if(!reached2) {
                  uv2 += offset * quality[i];
              }
 
-             if(reachedBoth){ break;}
+             if(reachedBoth){
+                 break;
+             }
          }
      }
 
@@ -335,8 +338,7 @@ vec3 pixel_FXAA (int i, int j) {
  }
 
 void clean_FXAA (void) {
-// poate mem_set?
-    vec3 tmp = (vec3)(0, 0, 0);
+    vec3 tmp = vec3(0, 0, 0);
 
     for (int i = 0; i < SCREEN_HEIGHT; ++i) {
         for (int j = 0; j < SCREEN_WIDTH; ++j) {
@@ -364,8 +366,7 @@ int convert_texture(void) {
             Uint8 *p = (Uint8 *)texture_surf->pixels + j * texture_surf->pitch + i * bpp;
             Uint32 data = 0;
 
-            switch (bpp)
-            {
+            switch (bpp) {
                 case 1:
                     data = *p;
                     break;
@@ -383,7 +384,7 @@ int convert_texture(void) {
                     break;
 
                 default:
-                    return 0;       /* shouldn't happen, but avoids warnings */
+                    return 0;
             }
 
         SDL_Color rgb;
@@ -399,7 +400,6 @@ int convert_texture(void) {
     }
     return 0;
 }
-
 
 void Update() {
     const uint8_t *keyState = SDL_GetKeyboardState(NULL);
@@ -420,8 +420,7 @@ void Update() {
          light.position);
 
     if (keyState[SDL_SCANCODE_V]) {
-     fxaa = !fxaa;
-     cout << "This is fxaa: " << fxaa << std::endl;
+       fxaa = !fxaa;
     }
 }
 

@@ -55,7 +55,6 @@ bool LoadModel( vector<Triangle>& triangles, const char* filename ) {
 
         istringstream input( line );
         input >> header >> s[0] >> s[1] >> s[2];
-
         if        (header == "v") {
             input >> header >> s[0] >> s[1] >> s[2];
             vertices.push_back(vec3(strtof((s[0]).c_str(), 0),
@@ -106,9 +105,13 @@ bool LoadModel( vector<Triangle>& triangles, const char* filename ) {
                                     1.0f);
                 v[pos] = vertex;
 
-                vec2 uvCoord = vec2( textures[textureInd[pos] - 1].x,
-                                     textures[textureInd[pos] - 1].y);
-                uv[pos] = uvCoord;
+                if (textureInd[pos] >= 0) {
+                    vec2 uvCoord = vec2( textures[textureInd[pos] - 1].x,
+                                         textures[textureInd[pos] - 1].y);
+                    uv[pos] = uvCoord;
+                } else {
+                    uv[pos] = vec2(-1, -1);
+                }
             }
 
             Triangle triangle = Triangle( v[2], v[1], v[0], COLOR, uv[2], uv[1], uv[0]);
@@ -133,17 +136,9 @@ void RotateTriangles( vector<Triangle>& triangles) {
                        vec4(0,  0, -1, 0),
                        vec4(0,  0,  0, 1));
 
-       mat4 Ry = mat4(vec4(-1,  0,  0, 0),
-                      vec4(0, 1,  0, 0),
-                      vec4(0,  0, -1, 0),
-                      vec4(0,  0,  0, 1));
         triangles[i].v0 = Rx * triangles[i].v0;
     	triangles[i].v1 = Rx * triangles[i].v1;
     	triangles[i].v2 = Rx * triangles[i].v2;
-
-        triangles[i].v0 = Ry * triangles[i].v0;
-    	triangles[i].v1 = Ry * triangles[i].v1;
-    	triangles[i].v2 = Ry * triangles[i].v2;
     }
 }
 
