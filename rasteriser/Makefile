@@ -45,6 +45,16 @@ run-cow :
 	make build
 	./$(EXEC) --realtime --load-box spot_trick.obj
 
+run-skyscraper :
+	make clean
+	make build
+	./$(EXEC) --realtime --load-box skyscraper.obj	
+
+run-lamp :
+	make clean
+	make build
+	./$(EXEC) --realtime --load-box lamp.obj	
+
 # Clean rule
 .PHONY: clean
 
