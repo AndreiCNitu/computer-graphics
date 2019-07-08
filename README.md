@@ -1,5 +1,23 @@
 # Raytracer
 
+<p float="left">
+  <img src="raytracer/screenshots/final1_50kspp.png" width="600" />
+</p>
+<p float="left">
+  <img src="raytracer/screenshots/final3_25kspp.png" width="600" />
+</p>
+***
+
+### Features
+- Monte Carlo Path Tracing
+- Anti-aliasing and soft shadows
+- Diffuse, emissive, specular, transparent and refractive materials
+- Fresnel effect (using Schlick's approximation)
+- Beer-Lambert law
+- Fog density
+- Tone mapping and gamma correction
+- OpenMP parallelism
+
 ### Usage
 ```
 Usage: ./raytracer [OPTIONS]
@@ -25,6 +43,16 @@ Usage: ./raytracer [OPTIONS]
 
 # Rasteriser
 
+<p float="left">
+  <img src="rasteriser/screenshots/lucy_28mil.png" width="600" />
+</p>
+
+***
+### Features
+- Texture mapping
+- Custom model loader
+- FXAA
+
 ### Usage
 ```
 Usage: ./rasteriser [OPTIONS]
@@ -48,4 +76,4 @@ Usage: ./rasteriser [OPTIONS]
   E --> down             P --> down
 ```
 
-Note: The `lucy.obj` model is not commited because its size is too big (2.45 GB)
+Note: The `lucy.obj` model is not committed because its size is too big (2.45 GB)
