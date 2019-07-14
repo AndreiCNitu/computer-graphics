@@ -6,8 +6,8 @@
 <p float="left">
   <img src="raytracer/screenshots/final3_25kspp.png" width="600" />
 </p>
-***
 
+***
 ### Features
 - Monte Carlo Path Tracing
 - Anti-aliasing and soft shadows
